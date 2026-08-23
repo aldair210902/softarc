@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@source "./**/*.{js,ts,jsx,tsx}";
+
+/* Tema por clase en <html> (no solo prefers-color-scheme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root,
+html.light {
+  color-scheme: light;
+  --sa-canvas: #f1f5f9;
+  --sa-panel: #ffffff;
+  --sa-panel-2: #f8fafc;
+  --sa-border: #e2e8f0;
+  --sa-border-strong: #cbd5e1;
+  --sa-text: #0f172a;
+  --sa-muted: #475569;
+  --sa-faint: #64748b;
+  --sa-input: #ffffff;
+  --sa-overlay: rgba(15, 23, 42, 0.45);
+  --sa-scroll: #cbd5e1;
+  --sa-scroll-hover: #94a3b8;
+}
+
+html.dark {
+  color-scheme: dark;
+  --sa-canvas: #0b0f17;
+  --sa-panel: #111827;
+  --sa-panel-2: #16161a;
+  --sa-border: #1e293b;
+  --sa-border-strong: #334155;
+  --sa-text: #e2e8f0;
+  --sa-muted: #94a3b8;
+  --sa-faint: #64748b;
+  --sa-input: #0b0f17;
+  --sa-overlay: rgba(11, 15, 23, 0.8);
+  --sa-scroll: #1e293b;
+  --sa-scroll-hover: #334155;
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-sa-canvas: var(--sa-canvas);
+  --color-sa-panel: var(--sa-panel);
+  --color-sa-panel-2: var(--sa-panel-2);
+  --color-sa-border: var(--sa-border);
+  --color-sa-border-strong: var(--sa-border-strong);
+  --color-sa-text: var(--sa-text);
+  --color-sa-muted: var(--sa-muted);
+  --color-sa-faint: var(--sa-faint);
+  --color-sa-input: var(--sa-input);
+  --color-sa-overlay: var(--sa-overlay);
+}
+
+body {
+  background-color: var(--sa-canvas);
+  color: var(--sa-text);
+  font-family: var(--font-sans);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--sa-scroll);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--sa-scroll-hover);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Formularios públicos: contraste en modo claro/oscuro */
+input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']),
+select,
+textarea {
+  background-color: var(--sa-input);
+  color: var(--sa-text);
+  border: 1px solid var(--sa-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--sa-faint);
+}
+
+/* Modales: el contenido hereda color de texto del tema (evita blanco sobre claro) */
+[role='dialog'],
+.sa-modal {
+  color: var(--sa-text);
+}
+
+[role='dialog'] option,
+.sa-modal option {
+  color: var(--sa-text);
+  background-color: var(--sa-panel);
+}
+
