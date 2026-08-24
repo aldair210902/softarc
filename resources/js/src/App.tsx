@@ -4,7 +4,7 @@
  */
 
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/Toast';
 import { DocumentTitle } from './components/DocumentTitle';
 import RequireAuth from './components/RequireAuth';
@@ -24,14 +24,16 @@ const CompanySettings = lazy(() => import('./pages/admin/CompanySettings'));
 const CRM = lazy(() => import('./pages/admin/CRM'));
 const Clients = lazy(() => import('./pages/admin/Clients'));
 const Projects = lazy(() => import('./pages/admin/Projects'));
-const Infrastructure = lazy(() => import('./pages/admin/Infrastructure'));
 const Support = lazy(() => import('./pages/admin/Support'));
 const Billing = lazy(() => import('./pages/admin/finances/Billing'));
+const Proformas = lazy(() => import('./pages/admin/finances/Proformas'));
 const Expenses = lazy(() => import('./pages/admin/finances/Expenses'));
 const Reports = lazy(() => import('./pages/admin/finances/Reports'));
 const Catalog = lazy(() => import('./pages/admin/infra/Catalog'));
+const WebPages = lazy(() => import('./pages/admin/infra/WebPages'));
 const MediaLibrary = lazy(() => import('./pages/admin/infra/MediaLibrary'));
 const Providers = lazy(() => import('./pages/admin/infra/Providers'));
+const ResellerPlans = lazy(() => import('./pages/admin/infra/ResellerPlans'));
 const Servers = lazy(() => import('./pages/admin/infra/Servers'));
 const HostingWizard = lazy(() => import('./pages/admin/infra/HostingWizard'));
 const Domains = lazy(() => import('./pages/admin/infra/Domains'));
@@ -75,14 +77,17 @@ export default function App() {
               <Route path="crm" element={<CRM />} />
               <Route path="clients" element={<Clients />} />
               <Route path="projects" element={<Projects />} />
-              <Route path="infrastructure" element={<Infrastructure />} />
+              <Route path="infrastructure" element={<Navigate to="/admin/infra/servers" replace />} />
               <Route path="support" element={<Support />} />
               <Route path="finances/billing" element={<Billing />} />
+              <Route path="finances/proformas" element={<Proformas />} />
               <Route path="finances/expenses" element={<Expenses />} />
               <Route path="finances/reports" element={<Reports />} />
               <Route path="infra/catalog" element={<Catalog />} />
+              <Route path="infra/web-pages" element={<WebPages />} />
               <Route path="infra/media" element={<MediaLibrary />} />
               <Route path="infra/providers" element={<Providers />} />
+              <Route path="infra/reseller-plans" element={<ResellerPlans />} />
               <Route path="infra/hosting-wizard" element={<HostingWizard />} />
               <Route path="infra/servers" element={<Servers />} />
               <Route path="infra/domains" element={<Domains />} />

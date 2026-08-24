@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ClientResource;
 use App\Http\Resources\LeadResource;
+use App\Models\Client;
 use App\Models\Lead;
 use App\Support\Audit;
-use App\Support\Notify;
+use App\Support\LeadAlerter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LeadController extends Controller
 {
@@ -40,17 +43,14 @@ class LeadController extends Controller
 
         Audit::log('Lead creado', 'CRM', ['id' => $lead->id]);
 
-        Notify::toPermission(
-            ['crm.manage', 'crm.view'],
-            'lead',
-            'Nuevo prospecto: '.$lead->company_name,
-            $lead->contact_name.($lead->service_of_interest ? ' · '.$lead->service_of_interest : ''),
-            '/admin/crm',
-            ['leadId' => $lead->id],
-            auth()->id()
-        );
+        // Campanita en admin + email a ventas / usuarios CRM
+        LeadAlerter::notifyNew($lead, auth()->id());
 
-        return (new LeadResource($lead))->response()->setStatusCode(201);
+        if ($lead->status === 'Cliente Ganado') {
+            $this->ensureConvertedClient($lead);
+        }
+
+        return (new LeadResource($lead->fresh()))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, Lead $lead)
@@ -75,9 +75,29 @@ class LeadController extends Controller
             'status' => $data['status'] ?? $lead->status,
         ]);
 
+        if ($lead->status === 'Cliente Ganado') {
+            $this->ensureConvertedClient($lead);
+        }
+
         Audit::log('Lead actualizado', 'CRM', ['id' => $lead->id]);
 
-        return new LeadResource($lead);
+        return new LeadResource($lead->fresh());
+    }
+
+    public function convert(Lead $lead)
+    {
+        $client = $this->ensureConvertedClient($lead, true);
+
+        Audit::log('Lead convertido a cliente', 'CRM', [
+            'leadId' => $lead->id,
+            'clientId' => $client->id,
+        ]);
+
+        return response()->json([
+            'lead' => new LeadResource($lead->fresh()),
+            'client' => new ClientResource($client),
+            'clientId' => (string) $client->id,
+        ]);
     }
 
     public function destroy(Lead $lead)
@@ -87,5 +107,41 @@ class LeadController extends Controller
         Audit::log('Lead eliminado', 'CRM', ['id' => $lead->id], 'warning');
 
         return response()->json(['message' => 'Eliminado']);
+    }
+
+    private function ensureConvertedClient(Lead $lead, bool $forceWon = false): Client
+    {
+        return DB::transaction(function () use ($lead, $forceWon) {
+            if ($forceWon && $lead->status !== 'Cliente Ganado') {
+                $lead->status = 'Cliente Ganado';
+                $lead->save();
+            }
+
+            if ($lead->converted_client_id) {
+                $existing = Client::query()->find($lead->converted_client_id);
+                if ($existing) {
+                    return $existing;
+                }
+            }
+
+            $client = Client::query()
+                ->where('business_name', $lead->company_name)
+                ->first();
+
+            if (! $client) {
+                $client = Client::query()->create([
+                    'business_name' => $lead->company_name,
+                    'contact_name' => $lead->contact_name ?: $lead->company_name,
+                    'phone' => $lead->phone,
+                    'billing_email' => $lead->email,
+                    'status' => 'Activo',
+                ]);
+            }
+
+            $lead->converted_client_id = $client->id;
+            $lead->save();
+
+            return $client;
+        });
     }
 }

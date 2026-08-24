@@ -167,13 +167,13 @@ export default function CompanySettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-sa-border pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
-            <Building2 className="h-4 w-4" /> Configuración Central de Insumos
+            <Building2 className="h-4 w-4" /> Empresa
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-sa-text tracking-tight">
-            Insumos & Información Real de la Empresa
+            Ajustes
           </h1>
           <p className="text-sm text-sa-muted mt-1 max-w-2xl">
-            Configura aquí todos los datos oficiales (RUC, Cuentas Bancarias, WhatsApp, SLA y Redes). Todos los cambios se sincronizan en tiempo real en todo el sitio web público.
+            Datos oficiales (RUC, bancos, WhatsApp, SLA, redes). Se reflejan en la web pública.
           </p>
         </div>
 
@@ -231,7 +231,7 @@ export default function CompanySettingsPage() {
           </div>
 
           <p className="text-xs text-sa-muted">
-            Al completar el 100% de los insumos, tu web corporativa proyecta máxima credibilidad institucional ante clientes B2B y prospectos de VariaShop.
+            Al completar el 100% de los insumos, tu web corporativa proyecta máxima credibilidad institucional ante clientes B2B.
           </p>
         </div>
 
@@ -835,12 +835,12 @@ export default function CompanySettingsPage() {
 
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">
-                  URL de la Demo Interactiva VariaShop
+                  URL de ejemplo / landing de sistemas (opcional)
                 </label>
                 <input
                   type="text"
                   value={settings.variashopDemoUrl}
-                  onChange={e => setSettings({ ...settings, variashopDemoUrl: e.target.value })} className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" placeholder="/servicios/saas#demo-box"
+                  onChange={e => setSettings({ ...settings, variashopDemoUrl: e.target.value })} className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" placeholder="/servicios/saas"
                 />
               </div>
             </div>
@@ -920,6 +920,27 @@ export default function CompanySettingsPage() {
                   value={settings.currencyCode}
                   onChange={e => setSettings({ ...settings, currencyCode: e.target.value })} className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" placeholder="PEN"
                 />
+              </div>
+
+              <div className="md:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-300/90 uppercase tracking-wider mb-1">
+                    Modo de comprobantes (boleta / factura)
+                  </label>
+                  <p className="text-xs text-sa-muted mb-3">
+                    Mientras tu RUC no esté activo para emitir, usa <strong className="text-sa-text">Prueba</strong>:
+                    números BPR/FPR solo para practicar el flujo. Cuando actives el RUC, cambia a <strong className="text-sa-text">Oficial</strong>
+                    (series B001/F001). La integración SUNAT se podrá conectar después.
+                  </p>
+                  <select
+                    value={settings.billingEmissionMode || 'Prueba'}
+                    onChange={e => setSettings({ ...settings, billingEmissionMode: e.target.value as 'Prueba' | 'Oficial' })}
+                    className="w-full max-w-md px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Prueba">Prueba (sin valor tributario)</option>
+                    <option value="Oficial">Oficial (series reales, aún sin envío SUNAT)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>

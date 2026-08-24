@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Users as UsersIcon, LayoutGrid, List, MessageCircle, Target, Calendar,
-  Pencil, Trash2, Mail, Trophy, XCircle, Phone, Building2,
+  Pencil, Trash2, Mail, Trophy, XCircle, Phone, Building2, UserPlus,
 } from 'lucide-react';
 import { Lead, LeadStatus } from '../../types';
 import { cn } from '../../lib/utils';
@@ -12,6 +13,7 @@ import { apiGet, apiMutate, getCached } from '../../lib/api';
 import { Field, FormModal, inputClass } from '../../components/ui/FormModal';
 import { DetailModal, DetailGrid, DetailItem } from '../../components/ui/DetailModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 const PIPELINE_STATUSES: LeadStatus[] = [
   'Nuevo Prospecto',
@@ -305,6 +307,8 @@ function LeadFormModal({
 
 export default function CRM() {
   const { can } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>(() => getCached<Lead[]>('/api/leads') ?? []);
   const [catalogProducts, setCatalogProducts] = useState<{ id: string; name: string }[]>(
     () => getCached<{ id: string; name: string }[]>('/api/catalog') ?? [],
@@ -318,6 +322,7 @@ export default function CRM() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Lead | null>(null);
+  const [converting, setConverting] = useState(false);
 
   const loadLeads = () => {
     apiGet<Lead[]>('/api/leads')
@@ -363,12 +368,64 @@ export default function CRM() {
     loadLeads();
   };
 
+  const applyLeadUpdate = (updated: Lead) => {
+    setLeads((curr) => curr.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)));
+    if (detailLead?.id === updated.id) setDetailLead((prev) => (prev ? { ...prev, ...updated } : prev));
+  };
+
+  const convertLead = async (lead: Lead) => {
+    if (lead.convertedClientId) {
+      navigate(`/admin/clients`);
+      return;
+    }
+    setConverting(true);
+    try {
+      const res = await apiMutate<{
+        lead?: Lead;
+        client?: { id: string; businessName?: string };
+        clientId?: string;
+      }>('post', `/api/leads/${lead.id}/convert`);
+      const clientId = res.clientId || res.client?.id || res.lead?.convertedClientId;
+      if (res.lead) applyLeadUpdate(res.lead);
+      else if (clientId) applyLeadUpdate({ ...lead, status: 'Cliente Ganado', convertedClientId: clientId });
+      loadLeads();
+      toast('success', 'Cliente creado', `${lead.companyName} ya está en tu cartera.`);
+      const goHosting = window.confirm(
+        'Cliente listo. ¿Abrir el asistente de alta de hosting?\n\nAceptar = Hosting · Cancelar = ver clientes',
+      );
+      if (goHosting && clientId) {
+        navigate(`/admin/infra/hosting-wizard?clientId=${encodeURIComponent(clientId)}`);
+      } else {
+        navigate('/admin/clients');
+      }
+    } catch {
+      toast('error', 'No se pudo convertir', 'Revisa el lead e inténtalo de nuevo.');
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const updateLeadStatus = async (id: string, newStatus: LeadStatus) => {
     const previous = leads;
+    const current = leads.find((l) => l.id === id);
     setLeads((curr) => curr.map((l) => (l.id === id ? { ...l, status: newStatus } : l)));
     if (detailLead?.id === id) setDetailLead((prev) => (prev ? { ...prev, status: newStatus } : prev));
     try {
-      await apiMutate('put', `/api/leads/${id}`, { status: newStatus });
+      const updated = await apiMutate<Lead>('put', `/api/leads/${id}`, { status: newStatus });
+      const merged: Lead = {
+        ...(current || { id } as Lead),
+        ...updated,
+        status: updated?.status || newStatus,
+      };
+      applyLeadUpdate(merged);
+      if (newStatus === 'Cliente Ganado') {
+        if (merged.convertedClientId) {
+          loadLeads();
+          toast('success', 'Cliente listo', 'El prospecto ya tiene cliente vinculado.');
+        } else if (current) {
+          await convertLead({ ...merged, status: 'Cliente Ganado' });
+        }
+      }
     } catch {
       setLeads(previous);
     }
@@ -445,8 +502,10 @@ export default function CRM() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">CRM & Prospectos</h1>
-            <p className="text-sm text-sa-faint mt-1">Pipeline comercial: registra, mueve y da seguimiento a cada lead.</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Prospectos</h1>
+            <p className="text-sm text-sa-faint mt-1">
+              CRM: leads de la web o los que cargas a mano. Al llegar uno nuevo: campanita del admin + email a Ventas / usuarios con permiso CRM.
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center bg-sa-panel border border-sa-border rounded-lg p-1 self-start">
@@ -770,6 +829,26 @@ export default function CRM() {
               </a>
             )}
             <Can ability="crm.manage">
+              {detailLead.convertedClientId ? (
+                <Link
+                  to="/admin/clients"
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+                  onClick={() => setDetailLead(null)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Abrir cliente
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={converting}
+                  onClick={() => void convertLead(detailLead)}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-60 transition-colors"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {converting ? 'Creando…' : 'Crear / abrir cliente'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => { const l = detailLead; setDetailLead(null); openEdit(l); }} className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors">

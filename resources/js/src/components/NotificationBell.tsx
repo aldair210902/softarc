@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, Ticket, Target, Info } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, Target, Info, CalendarClock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { apiGet, apiMutate } from '../lib/api';
@@ -22,6 +22,7 @@ type NotifResponse = {
 function typeIcon(type: string) {
   if (type === 'ticket') return Ticket;
   if (type === 'lead') return Target;
+  if (type === 'expiry') return CalendarClock;
   return Info;
 }
 
@@ -43,7 +44,7 @@ export function NotificationBell() {
 
   useEffect(() => {
     void load(true);
-    const id = window.setInterval(() => void load(true), 45000);
+    const id = window.setInterval(() => void load(true), 20000);
     return () => window.clearInterval(id);
   }, [load]);
 
@@ -139,6 +140,7 @@ export function NotificationBell() {
                       'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border',
                       n.type === 'ticket' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                       n.type === 'lead' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                      n.type === 'expiry' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
                       'bg-sa-border text-sa-muted border-sa-border-strong',
                     )}>
                       <Icon className="h-4 w-4" />

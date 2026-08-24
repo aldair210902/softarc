@@ -16,8 +16,16 @@ class AuthController extends Controller
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:1'],
         ]);
+
+        $credentials['email'] = strtolower(trim($credentials['email']));
+
+        if ($credentials['email'] === '' || $credentials['password'] === '') {
+            throw ValidationException::withMessages([
+                'email' => ['Correo y contraseña son obligatorios.'],
+            ]);
+        }
 
         $remember = $request->boolean('remember', false);
 

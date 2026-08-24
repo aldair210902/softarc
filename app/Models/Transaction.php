@@ -10,13 +10,19 @@ class Transaction extends Model
     protected $fillable = [
         'subscription_id',
         'client_id',
+        'customer_name',
+        'customer_document',
+        'customer_address',
         'invoice_number',
+        'document_type',
+        'emission_mode',
         'concept',
         'amount_paid',
         'payment_method',
         'operation_code',
         'date_received',
         'status',
+        'notes',
     ];
 
     protected function casts(): array

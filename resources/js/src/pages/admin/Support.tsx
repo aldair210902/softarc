@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Search, LifeBuoy, Clock, CheckCircle, MoreVertical, MessageSquare, ExternalLink, AlertCircle, UserPlus, Hand } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -21,6 +22,8 @@ interface Ticket {
   lastActivity: string;
   assigneeId?: string;
   assigneeName?: string;
+  description?: string;
+  internalNotes?: string;
 }
 
 type AssigneeOption = { id: string; name: string };
@@ -54,10 +57,13 @@ const emptyTicket = {
   priority: 'Media' as Ticket['priority'],
   status: 'Pendiente' as Ticket['status'],
   assigneeId: '',
+  description: '',
+  internalNotes: '',
 };
 
 export default function Support() {
   const { user, can } = useAuth();
+  const location = useLocation();
   const myId = user?.id ? String(user.id) : '';
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('Todos');
@@ -90,6 +96,19 @@ export default function Support() {
         .catch(() => setAssignees([]));
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const state = location.state as { clientId?: string; clientName?: string } | null;
+    if (!state?.clientId || !can('tickets.manage')) return;
+    setEditingId(null);
+    setForm({
+      ...emptyTicket,
+      clientId: state.clientId,
+      client: state.clientName || '',
+    });
+    setCustomSystem(false);
+    setModalOpen(true);
+  }, [location.state]);
 
   const systemOptions = [
     ...SYSTEM_PRESETS,
@@ -137,6 +156,8 @@ export default function Support() {
       priority: ticket.priority,
       status: ticket.status,
       assigneeId: ticket.assigneeId || '',
+      description: ticket.description || '',
+      internalNotes: ticket.internalNotes || '',
     });
     setCustomSystem(!!system && !isKnown);
     setModalOpen(true);
@@ -160,6 +181,8 @@ export default function Support() {
         client: selected?.businessName || form.client || 'Interno / Propietario',
         system: form.system || null,
         assigneeId: form.assigneeId || null,
+        description: form.description.trim() || null,
+        internalNotes: form.internalNotes.trim() || null,
       };
       if (editingId) {
         await apiMutate('put', `/api/tickets/${editingId}`, payload);
@@ -265,7 +288,7 @@ export default function Support() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Centro de Soporte y Tickets B2B</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Tickets</h1>
         <Can ability="tickets.manage">
           <button type="button" onClick={openCreate} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"><Plus className="h-4 w-4 mr-2" />
             Registrar Ticket
@@ -414,6 +437,26 @@ export default function Support() {
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
           </select>
+        </Field>
+
+        <Field label="Descripción" hint="Detalle del problema o solicitud (visible en el ticket).">
+          <textarea
+            className={cn(inputClass, 'min-h-[88px] resize-y')}
+            rows={3}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Describe el incidente, pasos para reproducir o lo que pide el cliente…"
+          />
+        </Field>
+
+        <Field label="Notas internas" hint="Solo para el equipo. No se envían al cliente.">
+          <textarea
+            className={cn(inputClass, 'min-h-[72px] resize-y')}
+            rows={2}
+            value={form.internalNotes}
+            onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
+            placeholder="Ej: revisar logs de cPanel · pendiente credenciales FTP"
+          />
         </Field>
       </FormModal>
 
@@ -648,6 +691,8 @@ export default function Support() {
             <DetailItem label="Prioridad" value={detail.priority} />
             <DetailItem label="Estado" value={detail.status} />
             <DetailItem label="Última actividad" value={detail.lastActivity} full />
+            <DetailItem label="Descripción" value={detail.description || '—'} full />
+            <DetailItem label="Notas internas" value={detail.internalNotes || '—'} full />
           </DetailGrid>
         )}
       </DetailModal>

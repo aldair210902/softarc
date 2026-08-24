@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Box,
+  MessageCircle,
 } from 'lucide-react';
 import { apiGet } from '../../lib/api';
 import { SaaSProduct } from '../../types';
@@ -41,14 +42,14 @@ export default function CatalogDemos() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/30 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6">
             <PlayCircle className="h-3.5 w-3.5" />
-            Catálogo de productos
+            Ejemplos de sistemas
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-sa-text tracking-tight mb-6 leading-tight">
-            Soluciones SaaS y{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">sistemas en vivo</span>
+            Capturas y fichas de{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">sistemas web</span>
           </h1>
           <p className="text-lg text-sa-muted leading-relaxed">
-            Productos reales publicados desde el panel SoftArc. Cotiza o solicita una demo personalizada.
+            Ejemplos publicados desde el panel SoftArc. Cotiza por WhatsApp — no son demos interactivas.
           </p>
         </div>
 
@@ -119,14 +120,37 @@ export default function CatalogDemos() {
                 </div>
                 <div className="px-8 pb-8 pt-0">
                   <div className="pt-6 border-t border-sa-border flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="text-xs text-sa-muted">
-                      Setup {settings.currencySymbol}{Number(product.setupFee || 0).toLocaleString()} ·{' '}
-                      {settings.currencySymbol}{Number(product.monthlyFee || 0).toLocaleString()}/mes
+                    {(Number(product.setupFee) > 0 || Number(product.monthlyFee) > 0) ? (
+                      <div className="text-xs text-sa-muted">
+                        {Number(product.setupFee) > 0 && (
+                          <span>Setup {settings.currencySymbol}{Number(product.setupFee).toLocaleString()}</span>
+                        )}
+                        {Number(product.setupFee) > 0 && Number(product.monthlyFee) > 0 && <span> · </span>}
+                        {Number(product.monthlyFee) > 0 && (
+                          <span>{settings.currencySymbol}{Number(product.monthlyFee).toLocaleString()}/mes</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-sa-muted">Cotización según alcance</div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Link
+                        to="/#contact"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500"
+                      >
+                        Cotizar
+                      </Link>
+                      {settings.salesWhatsapp?.trim() && (
+                        <a
+                          href={`https://wa.me/${settings.salesWhatsapp}?text=${encodeURIComponent('Hola, me interesa información sobre: ' + product.name)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500"
+                        >
+                          <MessageCircle className="h-4 w-4" /> WhatsApp
+                        </a>
+                      )}
                     </div>
-                    <Link
-                      to={{ pathname: '/', hash: 'contact' }}>
-                      <PlayCircle className="h-4 w-4" /> Solicitar demo
-                    </Link>
                   </div>
                 </div>
               </div>

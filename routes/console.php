@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('audit:prune')->dailyAt('03:15');
+Schedule::command('softarc:expiry-alerts')->dailyAt('08:00');

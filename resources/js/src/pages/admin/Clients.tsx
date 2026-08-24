@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Plus, Search, Phone, Building2, DollarSign, Users, AlertCircle, Clock, MessageCircle,
   Pencil, Ban, Trash2, Mail, CircleDot, ExternalLink, HardDrive, Globe, Key, Eye, EyeOff, Copy,
+  Wand2, LifeBuoy, Receipt,
 } from 'lucide-react';
 import { Client, Subscription } from '../../types';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -360,7 +362,7 @@ export default function Clients() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Clientes y Suscripciones</h1>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Clientes</h1>
           <p className="text-sm text-sa-faint mt-1">Empresas a las que facturas y el estado de sus planes.</p>
         </div>
         <Can ability="clients.manage">
@@ -700,6 +702,38 @@ export default function Clients() {
         wide
         footer={detail && (
           <>
+            <Can ability="servers.manage">
+              <Link
+                to={`/admin/infra/hosting-wizard?clientId=${encodeURIComponent(detail.id)}`}
+                onClick={() => setDetail(null)}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-sa-border text-sa-text border border-sa-border-strong hover:bg-sa-border-strong transition-colors"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Alta hosting
+              </Link>
+            </Can>
+            <Can ability="tickets.manage">
+              <Link
+                to="/admin/support"
+                state={{ clientId: detail.id, clientName: detail.businessName }}
+                onClick={() => setDetail(null)}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-sa-border text-sa-text border border-sa-border-strong hover:bg-sa-border-strong transition-colors"
+              >
+                <LifeBuoy className="h-3.5 w-3.5" />
+                Nuevo ticket
+              </Link>
+            </Can>
+            <Can ability="finances.manage">
+              <Link
+                to="/admin/finances/billing"
+                state={{ clientId: detail.id }}
+                onClick={() => setDetail(null)}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-sa-border text-sa-text border border-sa-border-strong hover:bg-sa-border-strong transition-colors"
+              >
+                <Receipt className="h-3.5 w-3.5" />
+                Nuevo cobro
+              </Link>
+            </Can>
             <Can ability="clients.manage">
               <button
                 type="button"

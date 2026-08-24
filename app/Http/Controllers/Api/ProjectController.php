@@ -12,7 +12,7 @@ class ProjectController extends Controller
 {
     public function index()
     {
-        return ProjectResource::collection(Project::query()->with('client')->latest()->get());
+        return ProjectResource::collection(Project::query()->with(['client', 'domain'])->latest()->get());
     }
 
     public function store(Request $request)
@@ -21,6 +21,7 @@ class ProjectController extends Controller
 
         $project = Project::query()->create([
             'client_id' => $data['clientId'],
+            'domain_id' => $data['domainId'] ?? null,
             'name' => $data['name'],
             'progress' => $data['progress'] ?? 0,
             'status' => $data['status'] ?? 'Planificación',
@@ -41,7 +42,7 @@ class ProjectController extends Controller
 
         Audit::log('Proyecto creado', 'Proyectos', ['id' => $project->id, 'name' => $project->name]);
 
-        return (new ProjectResource($project->load('client')))->response()->setStatusCode(201);
+        return (new ProjectResource($project->load(['client', 'domain'])))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, Project $project)
@@ -50,6 +51,7 @@ class ProjectController extends Controller
 
         $project->update([
             'client_id' => $data['clientId'] ?? $project->client_id,
+            'domain_id' => array_key_exists('domainId', $data) ? $data['domainId'] : $project->domain_id,
             'name' => $data['name'] ?? $project->name,
             'progress' => $data['progress'] ?? $project->progress,
             'status' => $data['status'] ?? $project->status,
@@ -70,7 +72,7 @@ class ProjectController extends Controller
 
         Audit::log('Proyecto actualizado', 'Proyectos', ['id' => $project->id]);
 
-        return new ProjectResource($project->load('client'));
+        return new ProjectResource($project->load(['client', 'domain']));
     }
 
     public function destroy(Project $project)
@@ -90,6 +92,7 @@ class ProjectController extends Controller
 
         return $request->validate([
             'clientId' => [$required, 'exists:clients,id'],
+            'domainId' => ['nullable', 'exists:domains,id'],
             'name' => [$required, 'string', 'max:255'],
             'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'status' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:50'],

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HardDrive, Globe, Key, Briefcase, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Can } from '../../../components/Can';
 import { HostingProcessNav } from '../../../components/HostingProcessNav';
@@ -40,6 +40,7 @@ const emptyForm = {
 
 export default function HostingWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>(1);
   const [clients, setClients] = useState<Client[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -47,8 +48,16 @@ export default function HostingWizard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiGet<Client[]>('/api/clients').then(setClients).catch(() => setClients([]));
-  }, []);
+    const preselected = searchParams.get('clientId') || '';
+    apiGet<Client[]>('/api/clients')
+      .then((list) => {
+        setClients(list);
+        if (preselected && list.some((c) => c.id === preselected)) {
+          setForm((f) => ({ ...f, clientId: preselected }));
+        }
+      })
+      .catch(() => setClients([]));
+  }, [searchParams]);
 
   const set = (patch: Partial<typeof emptyForm>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -94,12 +103,12 @@ export default function HostingWizard() {
     if (step === 3 && form.domainName && !form.ftpHost) {
       set({ ftpHost: `ftp.${form.domainName.replace(/^https?:\/\//, '').split('/')[0]}:21` });
     }
-    setStep((s) => Math.min(4, (s + 1) as Step));
+    setStep((s) => Math.min(4, (s + 1)) as Step);
   };
 
   const goBack = () => {
     setError('');
-    setStep((s) => Math.max(1, (s - 1) as Step));
+    setStep((s) => Math.max(1, (s - 1)) as Step);
   };
 
   const submit = async () => {
@@ -159,7 +168,7 @@ export default function HostingWizard() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Registrar hosting</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Alta de hosting</h1>
         <p className="text-sm text-sa-faint mt-1">
           Un solo flujo crea el servidor, el dominio (vinculado) y las credenciales cPanel/FTP.
         </p>

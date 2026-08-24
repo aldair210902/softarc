@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Download, CheckCircle2, AlertCircle, Clock, MessageCircle, MoreVertical, ChevronDown, Filter } from 'lucide-react';
+import { Plus, Search, FileText, CheckCircle2, Clock, MessageCircle, MoreVertical, ChevronDown, Filter, Download } from 'lucide-react';
 import { useCompanySettings } from '../../../hooks/useCompanySettings';
 import { cn } from '../../../lib/utils';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Can } from '../../../components/Can';
-import { apiGet, apiMutate } from '../../../lib/api';
+import { apiDownload, apiGet, apiMutate } from '../../../lib/api';
 import { Field, FormModal, inputClass } from '../../../components/ui/FormModal';
 import { DetailModal, DetailGrid, DetailItem } from '../../../components/ui/DetailModal';
+import { ConceptPicker, type ConceptOption } from '../../../components/ui/ConceptPicker';
+import { FinancesSubnav } from '../../../components/FinancesSubnav';
 import { Client } from '../../../types';
+import { useToast } from '../../../components/ui/Toast';
 
 type FilterTab = 'Todos' | 'Pagados' | 'Pendientes' | 'Vencidos';
 type PaymentMethodFilter = 'Todos' | 'Yape/Plin' | 'BCP/BBVA' | 'Pasarela Culqi/Stripe';
@@ -15,29 +18,44 @@ type PaymentMethodFilter = 'Todos' | 'Yape/Plin' | 'BCP/BBVA' | 'Pasarela Culqi/
 interface Invoice {
   id: string;
   invoiceNumber: string;
+  documentType: 'Recibo' | 'Boleta' | 'Factura';
+  emissionMode: 'Prueba' | 'Oficial';
+  isPractice?: boolean;
   clientId: string;
   clientName: string;
   clientDocument: string;
+  customerName?: string;
+  customerDocument?: string;
+  customerAddress?: string;
   concept: string;
   amount: number;
   paymentMethod: string;
+  operationCode?: string;
   issueDate: string;
   status: 'Pagado' | 'Pendiente' | 'Vencido' | 'Anulado';
+  notes?: string;
 }
 
 const emptyPayment = {
   clientId: '',
   invoiceNumber: '',
+  documentType: 'Recibo' as 'Recibo' | 'Boleta' | 'Factura',
+  emissionMode: 'Prueba' as 'Prueba' | 'Oficial',
+  customerName: '',
+  customerDocument: '',
+  customerAddress: '',
   concept: '',
   amount: '',
   paymentMethod: 'Yape',
   operationCode: '',
   issueDate: new Date().toISOString().slice(0, 10),
   status: 'Pagado',
+  notes: '',
 };
 
 export default function Billing() {
   const { settings } = useCompanySettings();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('Todos');
   const [methodFilter, setMethodFilter] = useState<PaymentMethodFilter>('Todos');
@@ -49,6 +67,7 @@ export default function Billing() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyPayment);
   const [detail, setDetail] = useState<Invoice | null>(null);
+  const [concepts, setConcepts] = useState<ConceptOption[]>([]);
 
   const loadInvoices = () => {
     apiGet<Invoice[]>('/api/transactions')
@@ -59,11 +78,32 @@ export default function Billing() {
   useEffect(() => {
     loadInvoices();
     apiGet<Client[]>('/api/clients').then(setClients).catch(() => setClients([]));
+    apiGet<ConceptOption[]>('/api/billing-concepts').then(setConcepts).catch(() => setConcepts([]));
   }, []);
 
-  const openCreate = () => {
+  const openCreate = async (preferredType: 'Recibo' | 'Boleta' | 'Factura' = 'Recibo') => {
     setEditingId(null);
-    setForm({ ...emptyPayment, clientId: clients[0]?.id || '' });
+    const mode = (settings.billingEmissionMode || 'Prueba') as 'Prueba' | 'Oficial';
+    let nextNumber = '';
+    try {
+      const res = await apiGet<{ invoiceNumber: string; emissionMode: 'Prueba' | 'Oficial' }>(
+        `/api/transactions/next-number?documentType=${encodeURIComponent(preferredType)}&emissionMode=${encodeURIComponent(mode)}`,
+      );
+      nextNumber = res.invoiceNumber || '';
+    } catch {
+      nextNumber = '';
+    }
+    const first = clients[0];
+    setForm({
+      ...emptyPayment,
+      clientId: first?.id || '',
+      documentType: preferredType,
+      emissionMode: mode,
+      invoiceNumber: nextNumber,
+      customerName: first?.businessName || '',
+      customerDocument: first?.documentNumber || '',
+      status: preferredType === 'Recibo' ? 'Pagado' : 'Pendiente',
+    });
     setModalOpen(true);
   };
 
@@ -72,14 +112,41 @@ export default function Billing() {
     setForm({
       clientId: invoice.clientId || '',
       invoiceNumber: invoice.invoiceNumber || '',
+      documentType: invoice.documentType || 'Recibo',
+      emissionMode: invoice.emissionMode || 'Prueba',
+      customerName: invoice.customerName || invoice.clientName || '',
+      customerDocument: invoice.customerDocument || invoice.clientDocument || '',
+      customerAddress: invoice.customerAddress || '',
       concept: invoice.concept || '',
       amount: String(invoice.amount ?? ''),
       paymentMethod: invoice.paymentMethod || 'Yape',
-      operationCode: '',
+      operationCode: invoice.operationCode || '',
       issueDate: invoice.issueDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       status: invoice.status || 'Pagado',
+      notes: invoice.notes || '',
     });
     setModalOpen(true);
+  };
+
+  const onClientChange = (clientId: string) => {
+    const c = clients.find((x) => x.id === clientId);
+    setForm((prev) => ({
+      ...prev,
+      clientId,
+      customerName: c?.businessName || '',
+      customerDocument: c?.documentNumber || '',
+    }));
+  };
+
+  const refreshNumber = async (documentType: 'Recibo' | 'Boleta' | 'Factura', emissionMode: 'Prueba' | 'Oficial') => {
+    try {
+      const res = await apiGet<{ invoiceNumber: string }>(
+        `/api/transactions/next-number?documentType=${encodeURIComponent(documentType)}&emissionMode=${encodeURIComponent(emissionMode)}`,
+      );
+      setForm((prev) => ({ ...prev, invoiceNumber: res.invoiceNumber || prev.invoiceNumber }));
+    } catch {
+      /* keep current */
+    }
   };
 
   const closeModal = () => {
@@ -94,13 +161,19 @@ export default function Billing() {
     try {
       const payload = {
         clientId: form.clientId || null,
-        invoiceNumber: form.invoiceNumber,
+        invoiceNumber: form.invoiceNumber || null,
+        documentType: form.documentType,
+        emissionMode: form.emissionMode,
+        customerName: form.customerName || null,
+        customerDocument: form.customerDocument || null,
+        customerAddress: form.customerAddress || null,
         concept: form.concept,
         amount: Number(form.amount),
         paymentMethod: form.paymentMethod,
         operationCode: form.operationCode,
         issueDate: form.issueDate,
         status: form.status,
+        notes: form.notes || null,
       };
       if (editingId) {
         await apiMutate('put', `/api/transactions/${editingId}`, payload);
@@ -109,6 +182,9 @@ export default function Billing() {
       }
       closeModal();
       loadInvoices();
+      toast('success', 'Guardado', form.invoiceNumber || 'Comprobante registrado');
+    } catch {
+      toast('error', 'Error', 'No se pudo guardar el comprobante.');
     } finally {
       setSubmitting(false);
     }
@@ -120,10 +196,32 @@ export default function Billing() {
     loadInvoices();
   };
 
+  const markPaid = async (invoice: Invoice) => {
+    try {
+      await apiMutate('put', `/api/transactions/${invoice.id}`, { status: 'Pagado' });
+      if (detail?.id === invoice.id) {
+        setDetail({ ...invoice, status: 'Pagado' });
+      }
+      loadInvoices();
+      toast('success', 'Marcado como pagado', invoice.invoiceNumber);
+    } catch {
+      toast('error', 'Error', 'No se pudo marcar como pagado.');
+    }
+  };
+
   const deleteInvoice = async (invoice: Invoice) => {
     if (!window.confirm(`¿Eliminar la factura ${invoice.invoiceNumber}?`)) return;
     await apiMutate('delete', `/api/transactions/${invoice.id}`);
     loadInvoices();
+  };
+
+  const downloadPdf = async (invoice: Invoice) => {
+    try {
+      await apiDownload(`/api/transactions/${invoice.id}/pdf`, `${invoice.invoiceNumber || 'comprobante'}.pdf`);
+      toast('success', 'PDF listo', invoice.invoiceNumber);
+    } catch {
+      toast('error', 'Error', 'No se pudo generar el PDF.');
+    }
   };
 
   // Metrics
@@ -164,19 +262,19 @@ export default function Billing() {
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
       case 'Pagado':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25';
       case 'Pendiente':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25';
       case 'Vencido':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
+        return 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25';
       case 'Anulado':
         return 'bg-sa-border text-sa-muted border-sa-border-strong';
     }
   };
 
   const getMethodBadge = (method: string) => {
-    if (['Yape', 'Plin'].includes(method)) return 'bg-[#7E3AF2]/10 text-[#7E3AF2] border-[#7E3AF2]/20';
-    if (['Transferencia BCP', 'Transferencia BBVA'].includes(method)) return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    if (['Yape', 'Plin'].includes(method)) return 'bg-[#7E3AF2]/10 text-[#6D28D9] dark:text-[#A78BFA] border-[#7E3AF2]/25';
+    if (['Transferencia BCP', 'Transferencia BBVA'].includes(method)) return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25';
     return 'bg-sa-border text-sa-muted border-sa-border-strong';
   };
 
@@ -189,46 +287,69 @@ export default function Billing() {
 
   return (
     <div className="space-y-6">
+      <FinancesSubnav />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Cobranzas & Facturas</h1>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-semibold text-sa-muted border border-sa-border bg-sa-panel hover:bg-sa-border/50 hover:text-sa-text transition-colors"
-          >
-            <FileText className="h-4 w-4 mr-2 text-sa-muted" />
-            Emitir Factura
-          </button>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Cobranzas</h1>
+        <div className="flex items-center gap-3 flex-wrap">
           <Can ability="finances.manage">
             <button
               type="button"
-              onClick={openCreate}
+              onClick={() => void openCreate('Recibo')}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Registrar Pago
+              Registrar pago
+            </button>
+            <button
+              type="button"
+              onClick={() => void openCreate('Boleta')}
+              className="inline-flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold text-sa-muted border border-sa-border bg-sa-panel hover:text-sa-text transition-colors"
+              title="Solo para practicar el formato. Sin valor tributario en modo Prueba."
+            >
+              Boleta (práctica)
+            </button>
+            <button
+              type="button"
+              onClick={() => void openCreate('Factura')}
+              className="inline-flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold text-sa-muted border border-sa-border bg-sa-panel hover:text-sa-text transition-colors"
+              title="Solo para practicar el formato. Sin valor tributario en modo Prueba."
+            >
+              Factura (práctica)
             </button>
           </Can>
         </div>
       </div>
 
-      <FormModal open={modalOpen} title={editingId ? 'Editar Pago' : 'Registrar Pago'} onClose={closeModal} onSubmit={savePayment} submitting={submitting} submitLabel="Guardar Pago" wide>
+      <div className="rounded-xl border border-emerald-600/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100/90">
+        <strong>Sin RUC activo:</strong> usa <strong>Registrar pago</strong> (recibo interno). Queda registrado lo que te pagan,
+        con PDF. Las boletas/facturas son opcionales para practicar y también exportan PDF, pero <strong>no son SUNAT</strong>.
+      </div>
+
+      {(settings.billingEmissionMode || 'Prueba') === 'Prueba' && (
+        <div className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100/90">
+          Modo comprobantes: <strong>Prueba</strong> (series BPR/FPR). Cuando actives el RUC, cámbialo a Oficial en Ajustes.
+        </div>
+      )}
+
+      <FormModal
+        open={modalOpen}
+        title={editingId ? 'Editar registro' : form.documentType === 'Recibo' ? 'Registrar pago (recibo interno)' : `Práctica: ${form.documentType}`}
+        onClose={closeModal}
+        onSubmit={savePayment}
+        submitting={submitting}
+        submitLabel="Guardar"
+        wide
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Cliente">
-            <select className={inputClass} value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>
-              <option value="">Sin cliente</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.businessName}</option>)}
+            <select className={inputClass} value={form.clientId} onChange={(e) => onClientChange(e.target.value)}>
+              <option value="">Elegir cliente</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.businessName}</option>
+              ))}
             </select>
-          </Field>
-          <Field label="N° Comprobante">
-            <input className={inputClass} value={form.invoiceNumber} onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })} placeholder="F001-00132" />
-          </Field>
-          <Field label="Concepto">
-            <input required className={inputClass} value={form.concept} onChange={(e) => setForm({ ...form, concept: e.target.value })} />
-          </Field>
-          <Field label={`Monto (${settings.currencySymbol})`}>
-            <input required type="number" min="0" step="0.01" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
           </Field>
           <Field label="Método de pago">
             <select className={inputClass} value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
@@ -239,11 +360,34 @@ export default function Billing() {
               <option>Tarjeta</option>
             </select>
           </Field>
+
+          {form.clientId ? (
+            <div className="sm:col-span-2 rounded-xl border border-sa-border bg-sa-canvas/50 px-3 py-2.5 text-xs text-sa-muted">
+              <span className="font-semibold text-sa-text">{form.customerName || 'Cliente'}</span>
+              {form.customerDocument ? ` · ${form.customerDocument}` : ''}
+            </div>
+          ) : (
+            <>
+              <Field label="Nombre">
+                <input className={inputClass} value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
+              </Field>
+              <Field label="RUC / DNI">
+                <input className={inputClass} value={form.customerDocument} onChange={(e) => setForm({ ...form, customerDocument: e.target.value })} />
+              </Field>
+            </>
+          )}
+
+          <ConceptPicker
+            concept={form.concept}
+            amount={form.amount}
+            options={concepts}
+            currencySymbol={settings.currencySymbol || 'S/'}
+            onConceptChange={(concept) => setForm((prev) => ({ ...prev, concept }))}
+            onAmountChange={(amount) => setForm((prev) => ({ ...prev, amount }))}
+          />
+
           <Field label="Código operación">
-            <input className={inputClass} value={form.operationCode} onChange={(e) => setForm({ ...form, operationCode: e.target.value })} />
-          </Field>
-          <Field label="Fecha">
-            <input type="date" className={inputClass} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
+            <input className={inputClass} value={form.operationCode} onChange={(e) => setForm({ ...form, operationCode: e.target.value })} placeholder="De Yape/banco (cuando confirmes)" />
           </Field>
           <Field label="Estado">
             <select className={inputClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
@@ -253,7 +397,30 @@ export default function Billing() {
               <option>Anulado</option>
             </select>
           </Field>
+          <Field label="Fecha">
+            <input type="date" className={inputClass} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
+          </Field>
+          <Field label="Tipo">
+            <select
+              className={inputClass}
+              value={form.documentType}
+              onChange={(e) => {
+                const documentType = e.target.value as 'Recibo' | 'Boleta' | 'Factura';
+                setForm((prev) => ({ ...prev, documentType }));
+                if (!editingId) void refreshNumber(documentType, form.emissionMode);
+              }}
+            >
+              <option value="Recibo">Recibo interno</option>
+              <option value="Boleta">Boleta (práctica)</option>
+              <option value="Factura">Factura (práctica)</option>
+            </select>
+          </Field>
         </div>
+        {form.emissionMode === 'Prueba' && form.documentType !== 'Recibo' && (
+          <p className="mt-3 text-xs text-amber-300/90">
+            Documento de práctica. No envía nada a SUNAT.
+          </p>
+        )}
       </FormModal>
 
       {/* KPI Cards */}
@@ -300,12 +467,13 @@ export default function Billing() {
             {(['Todos', 'Pagados', 'Pendientes', 'Vencidos'] as FilterTab[]).map(tab => (
               <button
                 key={tab}
+                type="button"
                 onClick={() => setActiveTab(tab)}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap",
-                  activeTab === tab 
-                    ? "bg-sa-border text-sa-text shadow-sm" 
-                    : "text-sa-faint hover:text-sa-muted hover:bg-sa-border/50"
+                  'px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap',
+                  activeTab === tab
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-sa-muted hover:text-sa-text hover:bg-sa-border/70',
                 )}
               >
                 {tab}
@@ -315,13 +483,16 @@ export default function Billing() {
 
           {/* Method Dropdown */}
           <div className="relative">
-            <button 
-              onClick={() => setShowMethodDropdown(!showMethodDropdown)}>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => setShowMethodDropdown(!showMethodDropdown)}
+              className="flex items-center justify-between gap-3 w-full sm:w-auto min-w-[160px] px-3.5 py-2.5 rounded-xl text-sm font-semibold text-sa-text bg-sa-panel border border-sa-border hover:border-sa-border-strong transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Filter className="h-4 w-4 text-sa-muted shrink-0" />
                 <span className="truncate">{methodFilter}</span>
               </div>
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 text-sa-muted shrink-0" />
             </button>
 
             {showMethodDropdown && (
@@ -329,13 +500,16 @@ export default function Billing() {
                 {(['Todos', 'Yape/Plin', 'BCP/BBVA', 'Pasarela Culqi/Stripe'] as PaymentMethodFilter[]).map(method => (
                   <button
                     key={method}
+                    type="button"
                     onClick={() => {
                       setMethodFilter(method);
                       setShowMethodDropdown(false);
                     }}
                     className={cn(
-                      "w-full text-left px-4 py-2 text-sm transition-colors",
-                      methodFilter === method ? "bg-sa-border text-sa-text font-medium" : "text-sa-muted hover:bg-sa-border/50 hover:text-sa-text"
+                      'w-full text-left px-4 py-2 text-sm transition-colors',
+                      methodFilter === method
+                        ? 'bg-blue-600/10 text-blue-700 dark:text-blue-400 font-semibold'
+                        : 'text-sa-muted hover:bg-sa-border/70 hover:text-sa-text',
                     )}
                   >
                     {method}
@@ -382,7 +556,7 @@ export default function Billing() {
                   <th className="px-6 py-4 uppercase tracking-wider text-[11px] text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1E293B]">
+              <tbody className="divide-y divide-sa-border">
                 {filteredInvoices.map((invoice) => (
                   <tr
                     key={invoice.id}
@@ -391,9 +565,17 @@ export default function Billing() {
                   >
                     <td className="px-6 py-4">
                       <div className="font-bold text-sa-text text-[13px]">{invoice.invoiceNumber}</div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="text-[10px] font-semibold text-sa-faint uppercase">{invoice.documentType || 'Recibo'}</span>
+                        {(invoice.emissionMode === 'Prueba' || invoice.isPractice) && (
+                          <span className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                            PRUEBA
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div >{invoice.clientName}</div>
+                      <div className="font-medium text-sa-text text-[13px]">{invoice.clientName}</div>
                       <div className="text-sa-faint text-[11px] mt-0.5">RUC: {invoice.clientDocument}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -419,7 +601,12 @@ export default function Billing() {
                     </td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
-                        <button title="Ver PDF">
+                        <button
+                          type="button"
+                          onClick={() => void downloadPdf(invoice)}
+                          className="w-8 h-8 rounded-lg bg-sa-canvas border border-sa-border text-sa-muted flex items-center justify-center hover:text-sa-text hover:border-blue-500/40"
+                          title="Descargar PDF"
+                        >
                           <Download className="h-4 w-4" />
                         </button>
                         <a 
@@ -432,17 +619,24 @@ export default function Billing() {
                           <MessageCircle className="h-4 w-4" />
                         </a>
                         <div className="relative group/menu">
-                          <button >
+                          <button
+                            type="button"
+                            className="w-8 h-8 rounded-lg bg-sa-canvas border border-sa-border text-sa-muted flex items-center justify-center hover:text-sa-text hover:border-blue-500/40"
+                            title="Más acciones"
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </button>
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-sa-border border border-sa-border-strong rounded-lg shadow-xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-20">
+                          <div className="absolute right-0 top-full mt-1 w-44 bg-sa-panel border border-sa-border rounded-lg shadow-xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-20">
                             <div className="py-1">
                               <Can ability="finances.manage">
-                                <button type="button" onClick={() => openEdit(invoice)} className="w-full text-left px-4 py-2 text-xs text-sa-muted hover:text-sa-text hover:bg-sa-border-strong transition-colors">Editar</button>
+                                {(invoice.status === 'Pendiente' || invoice.status === 'Vencido') && (
+                                  <button type="button" onClick={() => void markPaid(invoice)} className="w-full text-left px-4 py-2 text-xs text-emerald-700 dark:text-emerald-400 hover:bg-sa-border transition-colors">Marcar pagado</button>
+                                )}
+                                <button type="button" onClick={() => openEdit(invoice)} className="w-full text-left px-4 py-2 text-xs text-sa-muted hover:text-sa-text hover:bg-sa-border transition-colors">Editar</button>
                               </Can>
-                              <button type="button" onClick={() => annulInvoice(invoice)} className="w-full text-left px-4 py-2 text-xs text-amber-400 hover:bg-sa-border-strong transition-colors">Anular Factura</button>
+                              <button type="button" onClick={() => annulInvoice(invoice)} className="w-full text-left px-4 py-2 text-xs text-amber-700 dark:text-amber-400 hover:bg-sa-border transition-colors">Anular Factura</button>
                               <Can ability="finances.manage">
-                                <button type="button" onClick={() => deleteInvoice(invoice)} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-sa-border-strong transition-colors">Eliminar</button>
+                                <button type="button" onClick={() => deleteInvoice(invoice)} className="w-full text-left px-4 py-2 text-xs text-red-700 dark:text-red-400 hover:bg-sa-border transition-colors">Eliminar</button>
                               </Can>
                             </div>
                           </div>
@@ -466,6 +660,24 @@ export default function Billing() {
         footer={detail && (
           <>
             <Can ability="finances.manage">
+              {detail.status !== 'Pagado' && detail.status !== 'Anulado' && (
+                <button
+                  type="button"
+                  onClick={() => void markPaid(detail)}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Marcar pagado
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void downloadPdf(detail)}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-sa-text bg-sa-panel border border-sa-border hover:border-blue-500/40 transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </button>
               <button
                 type="button"
                 onClick={() => { const inv = detail; setDetail(null); openEdit(inv); }} className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors">
@@ -479,13 +691,18 @@ export default function Billing() {
         {detail && (
           <DetailGrid>
             <DetailItem label="N° Comprobante" value={detail.invoiceNumber} />
+            <DetailItem label="Tipo" value={detail.documentType || 'Recibo'} />
+            <DetailItem label="Modo" value={detail.emissionMode === 'Prueba' || detail.isPractice ? 'Prueba (sin valor tributario)' : 'Oficial'} />
             <DetailItem label="Cliente" value={detail.clientName} />
             <DetailItem label="Documento" value={detail.clientDocument} />
+            <DetailItem label="Dirección" value={detail.customerAddress || '—'} />
             <DetailItem label="Concepto" value={detail.concept} full />
             <DetailItem label="Monto" value={`${settings.currencySymbol} ${detail.amount.toFixed(2)}`} />
             <DetailItem label="Método de pago" value={detail.paymentMethod} />
+            <DetailItem label="Código operación" value={detail.operationCode || '—'} />
             <DetailItem label="Fecha de emisión" value={formatDate(detail.issueDate)} />
             <DetailItem label="Estado" value={detail.status} />
+            {detail.notes ? <DetailItem label="Notas" value={detail.notes} full /> : null}
           </DetailGrid>
         )}
       </DetailModal>

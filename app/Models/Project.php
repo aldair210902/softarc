@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Project extends Model
 {
     protected $fillable = [
-        'client_id', 'name', 'progress', 'status', 'total_amount', 'amount_paid',
+        'client_id', 'domain_id', 'name', 'progress', 'status', 'total_amount', 'amount_paid',
         'due_date', 'repo_url', 'local_path_pc', 'local_path_laptop',
         'last_sync_device', 'last_sync_at', 'sync_note', 'db_note', 'last_db_touch_at',
         'milestones_total', 'milestones_done',
@@ -28,5 +28,10 @@ class Project extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function domain(): BelongsTo
+    {
+        return $this->belongsTo(Domain::class);
     }
 }

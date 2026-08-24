@@ -14,6 +14,8 @@ class SupportTicketResource extends JsonResource
             'id' => (string) $this->id,
             'clientId' => $this->client_id ? (string) $this->client_id : '',
             'subject' => $this->subject,
+            'description' => $this->description ?? '',
+            'internalNotes' => $this->internal_notes ?? '',
             'client' => $this->client_name ?? $this->client?->business_name ?? '',
             'system' => $this->system ?? '',
             'priority' => $this->priority,

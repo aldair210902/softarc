@@ -8,6 +8,7 @@ import { apiGet, apiMutate } from '../../../lib/api';
 import { Field, FormModal, inputClass } from '../../../components/ui/FormModal';
 import { DetailModal, DetailGrid, DetailItem } from '../../../components/ui/DetailModal';
 import { ProviderSelect } from '../../../components/ProviderSelect';
+import { FinancesSubnav } from '../../../components/FinancesSubnav';
 
 type FilterTab = 'Todos' | 'Infraestructura & VPS' | 'Licencias & Software' | 'Dominios' | 'Servicios Terceros';
 
@@ -156,6 +157,7 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
+      <FinancesSubnav />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Gastos & Egresos</h1>

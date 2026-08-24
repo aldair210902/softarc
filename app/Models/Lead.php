@@ -14,5 +14,6 @@ class Lead extends Model
         'service_of_interest',
         'status',
         'notes',
+        'converted_client_id',
     ];
 }

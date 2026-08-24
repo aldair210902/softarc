@@ -217,15 +217,15 @@ export default function Profile() {
         {activeTab === 'Sesiones & Dispositivos' && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-sa-text mb-1">Sesión actual</h2>
+              <h2 className="text-lg font-bold text-sa-text mb-1">Sesiones & dispositivos</h2>
               <p className="text-sm text-sa-faint">
-                La gestión avanzada de dispositivos quedará para una siguiente iteración. Tu sesión activa está protegida por cookie Laravel.
+                La gestión de sesiones por dispositivo llegará vía lista de tokens Sanctum (revocar dispositivos remotos). Por ahora solo ves que hay una sesión activa; no es una UI simulada de dispositivos.
               </p>
             </div>
             <div className="p-4 rounded-xl border border-sa-border bg-sa-canvas flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-semibold text-sa-text">Navegador actual</p>
-                <p className="text-sm text-sa-faint">Sesión autenticada en SoftArc</p>
+                <p className="font-semibold text-sa-text">Sesión actual</p>
+                <p className="text-sm text-sa-faint">Autenticada con cookie / Sanctum en SoftArc</p>
               </div>
               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded shrink-0">Activa</span>
             </div>

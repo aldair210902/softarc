@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Target, Briefcase, FolderKanban, HardDrive, LifeBuoy, 
-  ArrowLeft, Menu, X, Receipt, Banknote, LineChart,
+  ArrowLeft, Menu, X, Receipt, Banknote, LineChart, FileText,
   LayoutGrid, Globe, Key, Users, BookText, User, Settings, ClipboardList,
-  LogOut, Wand2, Building2, Images
+  LogOut, Wand2, Building2, Images, Tags, FilePen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
@@ -19,25 +19,28 @@ import { useTheme } from '../context/ThemeContext';
 
 const PAGE_TITLES: Record<string, string> = {
   '/admin': 'Dashboard',
-  '/admin/crm': 'CRM & Prospectos',
+  '/admin/crm': 'Prospectos',
   '/admin/clients': 'Clientes',
   '/admin/projects': 'Proyectos',
-  '/admin/support': 'Soporte',
-  '/admin/infra/catalog': 'Catálogo SaaS',
-  '/admin/infra/media': 'Gestor de imágenes',
+  '/admin/support': 'Tickets',
+  '/admin/infra/catalog': 'Demos de sistemas',
+  '/admin/infra/web-pages': 'Contenido web',
+  '/admin/infra/media': 'Imágenes',
   '/admin/infra/providers': 'Proveedores',
-  '/admin/infra/hosting-wizard': 'Registrar hosting',
+  '/admin/infra/reseller-plans': 'Planes de reventa',
+  '/admin/infra/hosting-wizard': 'Alta de hosting',
   '/admin/infra/servers': 'Servidores',
   '/admin/infra/domains': 'Dominios',
-  '/admin/infra/credentials': 'Credenciales',
+  '/admin/infra/credentials': 'Bóveda',
   '/admin/finances/billing': 'Cobranzas',
+  '/admin/finances/proformas': 'Proformas',
   '/admin/finances/expenses': 'Gastos',
   '/admin/finances/reports': 'Reportes',
   '/admin/team': 'Equipo',
   '/admin/wiki': 'Wiki',
-  '/admin/settings': 'Configuración',
+  '/admin/settings': 'Ajustes',
   '/admin/audit': 'Auditoría',
-  '/admin/profile': 'Perfil',
+  '/admin/profile': 'Mi perfil',
 };
 
 export default function AdminLayout() {
@@ -95,15 +98,16 @@ export default function AdminLayout() {
     {
       title: 'Comercial',
       items: [
-        { name: 'CRM', path: '/admin/crm', icon: Target },
+        { name: 'Prospectos', path: '/admin/crm', icon: Target },
         { name: 'Clientes', path: '/admin/clients', icon: Briefcase },
         { name: 'Proyectos', path: '/admin/projects', icon: FolderKanban },
       ],
     },
     {
-      title: 'Productos',
+      title: 'Sitio web',
       items: [
-        { name: 'Catálogo SaaS', path: '/admin/infra/catalog', icon: LayoutGrid },
+        { name: 'Demos de sistemas', path: '/admin/infra/catalog', icon: LayoutGrid },
+        { name: 'Contenido web', path: '/admin/infra/web-pages', icon: FilePen },
         { name: 'Imágenes', path: '/admin/infra/media', icon: Images },
       ],
     },
@@ -111,18 +115,20 @@ export default function AdminLayout() {
       title: 'Finanzas',
       items: [
         { name: 'Cobranzas', path: '/admin/finances/billing', icon: Receipt },
+        { name: 'Proformas', path: '/admin/finances/proformas', icon: FileText },
         { name: 'Gastos', path: '/admin/finances/expenses', icon: Banknote },
         { name: 'Reportes', path: '/admin/finances/reports', icon: LineChart },
       ],
     },
     {
-      title: 'Hosting & infra',
+      title: 'Infraestructura',
       items: [
-        { name: 'Servidores', path: '/admin/infra/servers', icon: HardDrive },
-        { name: 'Dominios', path: '/admin/infra/domains', icon: Globe },
-        { name: 'Credenciales', path: '/admin/infra/credentials', icon: Key },
+        { name: 'Planes de reventa', path: '/admin/infra/reseller-plans', icon: Tags },
         { name: 'Proveedores', path: '/admin/infra/providers', icon: Building2 },
         { name: 'Alta de hosting', path: '/admin/infra/hosting-wizard', icon: Wand2 },
+        { name: 'Servidores', path: '/admin/infra/servers', icon: HardDrive },
+        { name: 'Dominios', path: '/admin/infra/domains', icon: Globe },
+        { name: 'Bóveda', path: '/admin/infra/credentials', icon: Key },
       ],
     },
     {
@@ -133,10 +139,10 @@ export default function AdminLayout() {
       ],
     },
     {
-      title: 'Administración',
+      title: 'Sistema',
       items: [
         { name: 'Equipo', path: '/admin/team', icon: Users },
-        { name: 'Configuración', path: '/admin/settings', icon: Settings },
+        { name: 'Ajustes', path: '/admin/settings', icon: Settings },
         { name: 'Auditoría', path: '/admin/audit', icon: ClipboardList },
         { name: 'Mi perfil', path: '/admin/profile', icon: User },
       ],
@@ -169,11 +175,11 @@ export default function AdminLayout() {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-blue-600/10 text-blue-400'
+                      ? 'bg-blue-600/15 text-blue-700 dark:text-blue-400'
                       : 'text-sa-muted hover:bg-sa-border hover:text-sa-text',
                   )}
                 >
-                  <item.icon className={cn('h-4.5 w-4.5 shrink-0', isActive ? 'text-blue-400' : 'text-sa-faint')} style={{ width: 18, height: 18 }} />
+                  <item.icon className={cn('h-4.5 w-4.5 shrink-0', isActive ? 'text-blue-700 dark:text-blue-400' : 'text-sa-faint')} style={{ width: 18, height: 18 }} />
                   <span className="truncate">{item.name}</span>
                 </Link>
               );
@@ -294,9 +300,41 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6 relative custom-scrollbar">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-20 md:pb-6 relative custom-scrollbar">
           <Outlet />
         </main>
+
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-sa-border bg-sa-panel/95 backdrop-blur-md safe-area-pb">
+          <div className="grid grid-cols-4 gap-0.5 px-1 py-1.5">
+            {[
+              { name: 'Inicio', path: '/admin', icon: LayoutDashboard },
+              { name: 'Clientes', path: '/admin/clients', icon: Briefcase },
+              { name: 'Tickets', path: '/admin/support', icon: LifeBuoy },
+              { name: 'Dominios', path: '/admin/infra/domains', icon: Globe },
+            ]
+              .filter((item) => canAccessRoute(user, item.path))
+              .map((item) => {
+                const isActive = location.pathname === item.path
+                  || (item.path !== '/admin' && location.pathname.startsWith(item.path));
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    onMouseEnter={() => prefetchRoute(item.path)}
+                    onTouchStart={() => prefetchRoute(item.path)}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-xl text-[10px] font-bold transition-colors',
+                      isActive ? 'text-blue-700 dark:text-blue-400 bg-blue-600/15' : 'text-sa-faint hover:text-sa-text',
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="truncate max-w-full">{item.name}</span>
+                  </Link>
+                );
+              })}
+          </div>
+        </nav>
       </div>
     </div>
   );

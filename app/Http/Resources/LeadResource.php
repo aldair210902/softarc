@@ -19,6 +19,7 @@ class LeadResource extends JsonResource
             'serviceOfInterest' => $this->service_of_interest ?? '',
             'status' => $this->status,
             'notes' => $this->notes ?? '',
+            'convertedClientId' => $this->converted_client_id ? (string) $this->converted_client_id : '',
             'createdAt' => $this->created_at?->toISOString(),
         ];
     }

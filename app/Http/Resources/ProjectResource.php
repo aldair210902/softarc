@@ -13,6 +13,8 @@ class ProjectResource extends JsonResource
         return [
             'id' => (string) $this->id,
             'clientId' => (string) $this->client_id,
+            'domainId' => $this->domain_id ? (string) $this->domain_id : '',
+            'domainName' => $this->domain?->domain_name ?? '',
             'name' => $this->name,
             'progress' => (int) $this->progress,
             'status' => $this->status,

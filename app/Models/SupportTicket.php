@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SupportTicket extends Model
 {
     protected $fillable = [
-        'client_id', 'subject', 'client_name', 'system', 'priority', 'status',
+        'client_id', 'subject', 'description', 'internal_notes', 'client_name', 'system', 'priority', 'status',
         'assignee_id', 'last_activity_at',
     ];
 

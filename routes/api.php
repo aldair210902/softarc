@@ -13,18 +13,25 @@ use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProviderController;
+use App\Http\Controllers\Api\ResellerPlanController;
+use App\Http\Controllers\Api\ClientServiceController;
 use App\Http\Controllers\Api\ServerController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\ProformaController;
+use App\Http\Controllers\Api\BillingConceptController;
 use App\Http\Controllers\Api\WikiController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\WebPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/catalog', [CatalogController::class, 'index']);
+Route::get('/reseller-plans', [ResellerPlanController::class, 'publicIndex']);
 Route::get('/company-settings', [CompanySettingsController::class, 'show']);
+Route::get('/web-pages/{slug}', [WebPageController::class, 'publicShow']);
 Route::post('/leads', [LeadController::class, 'store'])->middleware('throttle:10,1');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
@@ -41,6 +48,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     Route::get('/leads', [LeadController::class, 'index'])->middleware('permission:crm.manage,crm.view');
     Route::put('/leads/{lead}', [LeadController::class, 'update'])->middleware('permission:crm.manage');
+    Route::post('/leads/{lead}/convert', [LeadController::class, 'convert'])->middleware('permission:crm.manage');
     Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->middleware('permission:crm.manage');
 
     Route::get('/clients', [ClientController::class, 'index'])->middleware('permission:clients.manage,clients.view');
@@ -54,19 +62,37 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::put('/subscriptions/{subscription}', [SubscriptionController::class, 'update'])->middleware('permission:clients.manage,finances.manage');
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])->middleware('permission:clients.manage,finances.manage');
 
+    Route::get('/billing-concepts', [BillingConceptController::class, 'index'])->middleware('permission:finances.manage,finances.view');
+
     Route::get('/transactions', [TransactionController::class, 'index'])->middleware('permission:finances.manage,finances.view');
+    Route::get('/transactions/next-number', [TransactionController::class, 'nextNumber'])->middleware('permission:finances.manage,finances.view');
+    Route::get('/transactions/{transaction}/pdf', [TransactionController::class, 'pdf'])->middleware('permission:finances.manage,finances.view');
     Route::post('/transactions', [TransactionController::class, 'store'])->middleware('permission:finances.manage');
     Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->middleware('permission:finances.manage');
     Route::delete('/transactions/{transaction}', [TransactionController::class, 'destroy'])->middleware('permission:finances.manage');
+
+    Route::get('/proformas', [ProformaController::class, 'index'])->middleware('permission:finances.manage,finances.view');
+    Route::get('/proformas/next-number', [ProformaController::class, 'nextNumber'])->middleware('permission:finances.manage,finances.view');
+    Route::get('/proformas/{proforma}/pdf', [ProformaController::class, 'pdf'])->middleware('permission:finances.manage,finances.view');
+    Route::post('/proformas', [ProformaController::class, 'store'])->middleware('permission:finances.manage');
+    Route::put('/proformas/{proforma}', [ProformaController::class, 'update'])->middleware('permission:finances.manage');
+    Route::delete('/proformas/{proforma}', [ProformaController::class, 'destroy'])->middleware('permission:finances.manage');
 
     Route::get('/expenses', [ExpenseController::class, 'index'])->middleware('permission:finances.manage,finances.view');
     Route::post('/expenses', [ExpenseController::class, 'store'])->middleware('permission:finances.manage');
     Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->middleware('permission:finances.manage');
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->middleware('permission:finances.manage');
 
+    Route::get('/catalog/manage', [CatalogController::class, 'indexAll'])
+        ->middleware('permission:catalog.manage,catalog.view');
     Route::post('/catalog', [CatalogController::class, 'store'])->middleware('permission:catalog.manage');
     Route::put('/catalog/{catalog}', [CatalogController::class, 'update'])->middleware('permission:catalog.manage');
     Route::delete('/catalog/{catalog}', [CatalogController::class, 'destroy'])->middleware('permission:catalog.manage');
+
+    Route::get('/web-pages', [WebPageController::class, 'index'])
+        ->middleware('permission:catalog.manage,settings.manage');
+    Route::put('/web-pages/{slug}', [WebPageController::class, 'update'])
+        ->middleware('permission:catalog.manage,settings.manage');
 
     Route::get('/media', [MediaController::class, 'index'])->middleware('permission:catalog.manage,catalog.view,settings.manage');
     Route::post('/media/upload', [MediaController::class, 'upload'])->middleware('permission:catalog.manage,settings.manage');
@@ -106,6 +132,24 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         ->middleware('permission:servers.manage,domains.manage');
     Route::delete('/providers/{provider}', [ProviderController::class, 'destroy'])
         ->middleware('permission:servers.manage,domains.manage');
+
+    Route::get('/reseller-plans/manage', [ResellerPlanController::class, 'index'])
+        ->middleware('permission:servers.manage,servers.view,domains.manage,domains.view');
+    Route::post('/reseller-plans', [ResellerPlanController::class, 'store'])
+        ->middleware('permission:servers.manage,domains.manage');
+    Route::put('/reseller-plans/{resellerPlan}', [ResellerPlanController::class, 'update'])
+        ->middleware('permission:servers.manage,domains.manage');
+    Route::delete('/reseller-plans/{resellerPlan}', [ResellerPlanController::class, 'destroy'])
+        ->middleware('permission:servers.manage,domains.manage');
+
+    Route::get('/client-services', [ClientServiceController::class, 'index'])
+        ->middleware('permission:servers.manage,servers.view,domains.manage,domains.view,clients.manage,clients.view');
+    Route::post('/client-services', [ClientServiceController::class, 'store'])
+        ->middleware('permission:servers.manage,domains.manage,clients.manage');
+    Route::put('/client-services/{clientService}', [ClientServiceController::class, 'update'])
+        ->middleware('permission:servers.manage,domains.manage,clients.manage');
+    Route::delete('/client-services/{clientService}', [ClientServiceController::class, 'destroy'])
+        ->middleware('permission:servers.manage,domains.manage,clients.manage');
 
     Route::post('/hosting-packages', [HostingPackageController::class, 'store'])
         ->middleware('permission:servers.manage,domains.manage,credentials.manage');

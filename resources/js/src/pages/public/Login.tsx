@@ -11,7 +11,7 @@ import { resolveHeaderBrand } from '../../lib/brandAssets';
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, user } = useAuth();
+  const { login, logout, user, loading } = useAuth();
   const { settings } = useCompanySettings();
   const { resolved } = useTheme();
   const brand = resolveHeaderBrand(settings, resolved);
@@ -23,19 +23,18 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  React.useEffect(() => {
-    if (user) {
-      const from = (location.state as { from?: string } | null)?.from || '/admin';
-      navigate(from, { replace: true });
-    }
-  }, [user, navigate, location.state]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const email = formData.email.trim();
+    const password = formData.password;
+    if (!email || !password) {
+      setError('Ingresa correo y contraseña.');
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
-      await login(formData.email, formData.password);
+      await login(email, password);
       const from = (location.state as { from?: string } | null)?.from || '/admin';
       navigate(from, { replace: true });
     } catch {
@@ -44,6 +43,49 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-sa-canvas flex items-center justify-center text-sa-muted text-sm">
+        Verificando sesión...
+      </div>
+    );
+  }
+
+  if (user) {
+    const from = (location.state as { from?: string } | null)?.from || '/admin';
+    return (
+      <div className="min-h-screen bg-sa-canvas flex flex-col items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-md bg-sa-panel border border-sa-border rounded-xl p-8 text-center space-y-4">
+          <ShieldCheck className="h-8 w-8 text-emerald-400 mx-auto" />
+          <h2 className="text-lg font-bold text-sa-text">Ya tienes una sesión activa</h2>
+          <p className="text-sm text-sa-muted">
+            Estás conectado como <span className="text-sa-text font-semibold">{user.email}</span>.
+            No necesitas volver a escribir la contraseña mientras la sesión siga vigente.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => navigate(from, { replace: true })}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-500"
+            >
+              Continuar al admin
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+              }}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold text-sa-muted border border-sa-border hover:bg-sa-border/50"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-sa-canvas flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">

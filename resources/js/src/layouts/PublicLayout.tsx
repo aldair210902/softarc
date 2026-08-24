@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Lock, MessageCircle, Instagram, Linkedin, Video, Menu, X, Facebook } from 'lucide-react';
+import { Lock, MessageCircle, Instagram, Linkedin, Video, Menu, X, Facebook, Youtube } from 'lucide-react';
 import { useCompanySettings } from '../hooks/useCompanySettings';
 import { cn } from '../lib/utils';
 import { resolveFooterBrand, resolveHeaderBrand } from '../lib/brandAssets';
@@ -182,11 +182,8 @@ export default function PublicLayout() {
               <button type="button" onClick={(e) => handleSectionNav(e, 'services')} className={navLinkClass(sectionActive('services'))}>
                 Servicios
               </button>
-              <button type="button" onClick={(e) => handleSectionNav(e, 'demos')} className={navLinkClass(sectionActive('demos'))}>
-                Catálogo
-              </button>
               <Link to="/catalogo" className={navLinkClass(location.pathname.startsWith('/catalogo') || location.pathname.startsWith('/demos'))}>
-                Demos
+                Ejemplos
               </Link>
               <button type="button" onClick={(e) => handleSectionNav(e, 'about')} className={navLinkClass(sectionActive('about'))}>
                 Nosotros
@@ -223,11 +220,8 @@ export default function PublicLayout() {
             <button type="button" onClick={(e) => handleSectionNav(e, 'services')} className="block w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-sa-text hover:bg-sa-panel">
               Servicios
             </button>
-            <button type="button" onClick={(e) => handleSectionNav(e, 'demos')} className="block w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-sa-text hover:bg-sa-panel">
-              Catálogo
-            </button>
             <Link to="/catalogo" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg text-sm font-semibold text-sa-text hover:bg-sa-panel">
-              Demos en vivo
+              Ejemplos
             </Link>
             <button type="button" onClick={(e) => handleSectionNav(e, 'about')} className="block w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-sa-text hover:bg-sa-panel">
               Nosotros
@@ -307,21 +301,32 @@ export default function PublicLayout() {
                   <Facebook className="h-4 w-4" />
                 </a>
               )}
+              {settings.youtubeUrl && (
+                <a
+                  href={settings.youtubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="YouTube"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-sa-border bg-sa-canvas text-sa-muted hover:text-sa-text hover:border-blue-500/40 transition-colors"
+                >
+                  <Youtube className="h-4 w-4" />
+                </a>
+              )}
             </div>
           </div>
           <div>
             <h3 className="text-sa-text font-semibold text-sm mb-2">Líneas de Servicio</h3>
             <ul className="space-y-1.5 text-xs text-sa-muted">
-              <li><Link to="/servicios/saas" className="hover:text-blue-500 transition-colors">Sistemas SaaS</Link></li>
-              <li><Link to="/servicios/a-la-medida" className="hover:text-blue-500 transition-colors">Desarrollo a la Medida</Link></li>
-              <li><Link to="/servicios/paginas-web-blogs" className="hover:text-blue-500 transition-colors">Páginas Web & Blogs SEO</Link></li>
-              <li><Link to="/servicios/infraestructura-soporte" className="hover:text-blue-500 transition-colors">Infraestructura & Soporte VPS</Link></li>
+              <li><Link to="/servicios/saas" className="hover:text-blue-500 transition-colors">Sistemas web</Link></li>
+              <li><Link to="/servicios/a-la-medida" className="hover:text-blue-500 transition-colors">Desarrollo a la medida</Link></li>
+              <li><Link to="/servicios/paginas-web-blogs" className="hover:text-blue-500 transition-colors">Páginas web & blogs</Link></li>
+              <li><Link to="/servicios/infraestructura-soporte" className="hover:text-blue-500 transition-colors">Dominios & hosting</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sa-text font-semibold text-sm mb-2">Accesos & Legal</h3>
             <ul className="space-y-1.5 text-xs text-sa-muted">
-              <li><Link to="/catalogo" className="hover:text-blue-500 transition-colors">Catálogo de Demos</Link></li>
+              <li><Link to="/catalogo" className="hover:text-blue-500 transition-colors">Ejemplos de sistemas</Link></li>
               <li><Link to="/login" className="hover:text-blue-500 transition-colors">Portal de Clientes</Link></li>
               <li>
                 <button type="button" onClick={(e) => handleSectionNav(e, 'contact')} className="hover:text-blue-500 transition-colors">

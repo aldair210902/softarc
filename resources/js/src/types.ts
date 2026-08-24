@@ -10,6 +10,7 @@ export interface Lead {
   status: LeadStatus;
   notes: string;
   createdAt: string;
+  convertedClientId?: string | null;
 }
 
 export type ClientStatus = 'Activo' | 'Inactivo';
@@ -71,6 +72,8 @@ export interface Project {
   lastDbTouchAt?: string;
   milestonesTotal?: number;
   milestonesDone?: number;
+  domainId?: string | null;
+  domainName?: string | null;
   client?: Client;
 }
 
@@ -93,6 +96,8 @@ export interface SupportTicket {
   priority: TicketPriority;
   status: TicketStatus;
   createdAt: string;
+  description?: string | null;
+  internalNotes?: string | null;
 }
 
 export interface SaaSProduct {
@@ -176,4 +181,6 @@ export interface CompanySettings {
   currencySymbol: string;
   currencyCode: string;
   variashopDemoUrl: string;
+  /** Prueba = series BPR/FPR sin valor tributario. Oficial = series B001/F001 (aún sin SUNAT). */
+  billingEmissionMode: 'Prueba' | 'Oficial';
 }

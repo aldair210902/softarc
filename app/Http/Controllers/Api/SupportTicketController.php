@@ -43,6 +43,8 @@ class SupportTicketController extends Controller
         $data = $request->validate([
             'clientId' => ['nullable', 'exists:clients,id'],
             'subject' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'internalNotes' => ['nullable', 'string'],
             'client' => ['nullable', 'string', 'max:255'],
             'system' => ['nullable', 'string', 'max:255'],
             'priority' => ['nullable', 'string', 'max:50'],
@@ -53,6 +55,8 @@ class SupportTicketController extends Controller
         $ticket = SupportTicket::query()->create([
             'client_id' => $data['clientId'] ?? null,
             'subject' => $data['subject'],
+            'description' => $data['description'] ?? null,
+            'internal_notes' => $data['internalNotes'] ?? null,
             'client_name' => $data['client'] ?? null,
             'system' => $data['system'] ?? null,
             'priority' => $data['priority'] ?? 'Media',
@@ -92,6 +96,8 @@ class SupportTicketController extends Controller
         $data = $request->validate([
             'clientId' => ['nullable', 'exists:clients,id'],
             'subject' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'internalNotes' => ['nullable', 'string'],
             'client' => ['nullable', 'string', 'max:255'],
             'system' => ['nullable', 'string', 'max:255'],
             'priority' => ['sometimes', 'string', 'max:50'],
@@ -104,6 +110,8 @@ class SupportTicketController extends Controller
         $ticket->update([
             'client_id' => array_key_exists('clientId', $data) ? $data['clientId'] : $ticket->client_id,
             'subject' => $data['subject'] ?? $ticket->subject,
+            'description' => array_key_exists('description', $data) ? $data['description'] : $ticket->description,
+            'internal_notes' => array_key_exists('internalNotes', $data) ? $data['internalNotes'] : $ticket->internal_notes,
             'client_name' => array_key_exists('client', $data) ? $data['client'] : $ticket->client_name,
             'system' => array_key_exists('system', $data) ? $data['system'] : $ticket->system,
             'priority' => $data['priority'] ?? $ticket->priority,

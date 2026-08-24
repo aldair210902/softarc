@@ -12,6 +12,17 @@ class CatalogController extends Controller
 {
     public function index()
     {
+        return SaasProductResource::collection(
+            SaasProduct::query()
+                ->whereIn('status', ['Activo', 'Beta'])
+                ->latest()
+                ->get()
+        );
+    }
+
+    /** Listado completo para panel admin (incluye Inactivo). */
+    public function indexAll()
+    {
         return SaasProductResource::collection(SaasProduct::query()->latest()->get());
     }
 

@@ -9,6 +9,7 @@ import {
 import { useCompanySettings } from '../../../hooks/useCompanySettings';
 import { cn } from '../../../lib/utils';
 import { apiGet } from '../../../lib/api';
+import { FinancesSubnav } from '../../../components/FinancesSubnav';
 import { Client, Subscription } from '../../../types';
 
 interface Invoice {
@@ -155,6 +156,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
+      <FinancesSubnav />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">
           Reportes Financieros & Métricas

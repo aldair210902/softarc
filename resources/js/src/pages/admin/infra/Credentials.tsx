@@ -270,7 +270,7 @@ export default function Credentials() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Bóveda de Credenciales</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Bóveda</h1>
         <Can ability="credentials.manage">
           <button type="button" onClick={openCreate} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"><Plus className="h-4 w-4 mr-2" />
             Nueva Credencial

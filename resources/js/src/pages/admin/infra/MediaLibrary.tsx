@@ -103,7 +103,7 @@ export default function MediaLibrary() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Gestor de imágenes</h1>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-sa-text tracking-tight">Imágenes</h1>
           <p className="text-sm text-sa-muted mt-1 max-w-2xl">
             Fotos de catálogo y archivos del kit de marca. Los logos de cabecera, footer, login y pestaña se marcan como
             <span className="text-sa-text font-semibold"> En uso</span> cuando están enlazados en Configuración.

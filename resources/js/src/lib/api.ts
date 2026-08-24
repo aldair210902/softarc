@@ -50,10 +50,21 @@ function cacheKey(url: string): string {
 
 function shouldPersist(url: string): boolean {
   if (url.includes('/reveal')) return false;
-  if (url.includes('/login') || url.includes('/logout')) return false;
+  if (url.includes('/login') || url.includes('/logout') || url.includes('/user')) return false;
   // Auditoría es volátil y con query params; no conviene persistirla.
   if (url.includes('/audit-logs')) return false;
+  // Catálogo público de planes: no persistir (si no, la web queda con lista vacía tras activar “Visible”).
+  if (url === '/api/reseller-plans' || url.endsWith('/api/reseller-plans')) return false;
   return url.startsWith('/api/');
+}
+
+function shouldCacheGet(url: string): boolean {
+  // Nunca cachear identidad/sesión: si no, un /api/user viejo “deja entrar” sin login.
+  if (url.includes('/login') || url.includes('/logout') || url.includes('/user')) return false;
+  if (url.includes('/reveal')) return false;
+  // Siempre fresco en la web pública de hosting.
+  if (url === '/api/reseller-plans' || url.endsWith('/api/reseller-plans')) return false;
+  return true;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -84,6 +95,7 @@ function hydrateFromSession(): void {
     const now = Date.now();
     for (const [key, val] of Object.entries(parsed)) {
       if (!val || val.data === undefined) continue;
+      if (!shouldCacheGet(key) || !shouldPersist(key)) continue;
       if (now - val.at > PERSIST_TTL_MS) continue;
       getCache.set(key, { at: val.at, data: val.data });
     }
@@ -120,6 +132,10 @@ export function getCached<T>(url: string): T | undefined {
 }
 
 function storeCache(url: string, data: unknown): void {
+  if (!shouldCacheGet(url)) {
+    getCache.delete(cacheKey(url));
+    return;
+  }
   getCache.set(cacheKey(url), { at: Date.now(), data });
   if (shouldPersist(url)) persistCacheSoon();
 }
@@ -138,16 +154,24 @@ function fetchAndStore<T>(url: string): Promise<T> {
       return data;
     })
     .catch((error) => {
-      const hit = getCache.get(key);
-      if (!hit || hit.data === undefined) {
+      const status = error?.response?.status;
+      // Si la sesión expiró / no hay auth, tirar cualquier dato viejo de inmediato.
+      if (status === 401 || status === 403 || !shouldCacheGet(url)) {
         getCache.delete(key);
       } else {
-        getCache.set(key, { at: hit.at, data: hit.data });
+        const hit = getCache.get(key);
+        if (!hit || hit.data === undefined) {
+          getCache.delete(key);
+        } else {
+          getCache.set(key, { at: hit.at, data: hit.data });
+        }
       }
       throw error;
     });
 
-  getCache.set(key, { at: existing?.at ?? 0, data: existing?.data, promise });
+  if (shouldCacheGet(url)) {
+    getCache.set(key, { at: existing?.at ?? 0, data: existing?.data, promise });
+  }
   return promise;
 }
 
@@ -160,8 +184,9 @@ export async function apiGet<T>(url: string, options?: { fresh?: boolean }): Pro
   const key = cacheKey(url);
   const now = Date.now();
   const hit = getCache.get(key);
+  const allowCache = shouldCacheGet(url);
 
-  if (!options?.fresh && hit?.data !== undefined) {
+  if (allowCache && !options?.fresh && hit?.data !== undefined) {
     const isFresh = now - hit.at < GET_TTL_MS;
     if (!isFresh) {
       void fetchAndStore<T>(url).catch(() => undefined);
@@ -169,13 +194,13 @@ export async function apiGet<T>(url: string, options?: { fresh?: boolean }): Pro
     return hit.data as T;
   }
 
-  if (!options?.fresh && hit?.promise) {
+  if (allowCache && !options?.fresh && hit?.promise) {
     return hit.promise as Promise<T>;
   }
 
   // fresh: no reutilizar request en vuelo (evita datos viejos tras editar).
   if (options?.fresh && hit?.promise) {
-    getCache.set(key, { at: hit.at, data: hit.data });
+    getCache.set(key, { at: hit.at, data: allowCache ? hit.data : undefined });
   }
 
   return fetchAndStore<T>(url);
@@ -208,6 +233,10 @@ export async function apiMutate<T>(
   } else {
     invalidateApiCache(path);
   }
+  if (path.includes('/reseller-plans')) {
+    invalidateApiCache('/api/reseller-plans');
+    invalidateApiCache('/api/reseller-plans/manage');
+  }
   if (path.includes('/hosting-packages')) {
     invalidateApiCache('/api/servers');
     invalidateApiCache('/api/domains');
@@ -215,6 +244,21 @@ export async function apiMutate<T>(
   }
 
   return data;
+}
+
+/** Descarga un PDF (u otro blob) autenticado con cookies de sesión. */
+export async function apiDownload(url: string, filename?: string): Promise<void> {
+  await ensureCsrf();
+  const res = await api.get(url, { responseType: 'blob' });
+  const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename || 'documento.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
 }
 
 /** Subida multipart (imágenes). */
@@ -236,11 +280,15 @@ export const ADMIN_PREFETCH_URLS = [
   '/api/credentials',
   '/api/providers',
   '/api/providers?activeOnly=1',
+  '/api/reseller-plans/manage',
+  '/api/client-services',
   '/api/catalog',
+  '/api/catalog/manage',
   '/api/leads',
   '/api/tickets',
   '/api/projects',
   '/api/expenses',
   '/api/transactions',
+  '/api/proformas',
   '/api/team',
 ];

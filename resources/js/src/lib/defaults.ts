@@ -51,5 +51,6 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   defaultDeliveryDays: '3 a 5 días hábiles',
   currencySymbol: 'S/',
   currencyCode: 'PEN',
-  variashopDemoUrl: '/servicios/saas#demo-box',
+  variashopDemoUrl: '/servicios/saas',
+  billingEmissionMode: 'Prueba',
 };
