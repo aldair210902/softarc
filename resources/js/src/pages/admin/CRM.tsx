@@ -2,16 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Users as UsersIcon, LayoutGrid, List, MessageCircle, Target, Calendar,
-  Pencil, Trash2, Mail, Trophy, XCircle, Phone, Building2, UserPlus,
+  Pencil, Trash2, Mail, Trophy, XCircle, Phone, UserPlus,
 } from 'lucide-react';
 import { Lead, LeadStatus } from '../../types';
+import { DEFAULT_CONTACT_FORM } from '../../lib/contactFormDefaults';
 import { cn } from '../../lib/utils';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Can } from '../../components/Can';
 import { useAuth } from '../../context/AuthContext';
 import { apiGet, apiMutate, getCached } from '../../lib/api';
 import { Field, FormModal, inputClass } from '../../components/ui/FormModal';
-import { DetailModal, DetailGrid, DetailItem } from '../../components/ui/DetailModal';
+import { DetailModal, DetailItem } from '../../components/ui/DetailModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
 
@@ -25,11 +26,7 @@ const PIPELINE_STATUSES: LeadStatus[] = [
 ];
 
 const SERVICE_PRESETS = [
-  'SaaS E-commerce',
-  'SaaS Facturación',
-  'Desarrollo a medida',
-  'Sitio web / Landing',
-  'Hosting / Dominio',
+  ...DEFAULT_CONTACT_FORM.serviceOptions.map((o) => o.value),
   'Mantenimiento / Soporte',
   'Integración / API',
   'Consultoría',
@@ -38,37 +35,93 @@ const SERVICE_PRESETS = [
 const STATUS_META: Record<LeadStatus, { bar: string; chip: string; soft: string }> = {
   'Nuevo Prospecto': {
     bar: 'bg-sky-500',
-    chip: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    chip: 'bg-sky-500/15 text-sky-800 dark:text-sky-300 border-sky-500/30',
     soft: 'border-sky-500/40 bg-sky-500/5',
   },
   Contactado: {
     bar: 'bg-amber-500',
-    chip: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    chip: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
     soft: 'border-amber-500/40 bg-amber-500/5',
   },
   'Demostración Agendada': {
     bar: 'bg-violet-500',
-    chip: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+    chip: 'bg-violet-500/15 text-violet-800 dark:text-violet-300 border-violet-500/30',
     soft: 'border-violet-500/40 bg-violet-500/5',
   },
   'Propuesta Enviada': {
     bar: 'bg-indigo-500',
-    chip: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+    chip: 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-500/30',
     soft: 'border-indigo-500/40 bg-indigo-500/5',
   },
   'Cliente Ganado': {
     bar: 'bg-emerald-500',
-    chip: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    chip: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30',
     soft: 'border-emerald-500/40 bg-emerald-500/5',
   },
   'Cliente Perdido': {
     bar: 'bg-rose-500',
-    chip: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+    chip: 'bg-rose-500/15 text-rose-800 dark:text-rose-300 border-rose-500/30',
     soft: 'border-rose-500/40 bg-rose-500/5',
   },
 };
 
 type FilterTab = 'Todos' | 'Activos' | 'Ganados' | 'Perdidos';
+type LeadSort = 'recientes' | 'antiguos' | 'empresa' | 'estado';
+
+function leadSortTime(lead: Lead): number {
+  const t = lead.createdAt ? new Date(lead.createdAt).getTime() : 0;
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function notesPreview(notes?: string): string {
+  const raw = (notes || '').trim();
+  if (!raw) return '';
+  const first = raw.split(/\n+/).map((l) => l.trim()).find(Boolean) || '';
+  return first.length > 72 ? `${first.slice(0, 72)}…` : first;
+}
+
+const CORE_LEAD_META_IDS = new Set(['contactName', 'companyName', 'phone', 'email', 'notes']);
+
+function leadMetaEntries(lead: Lead): { id: string; label: string; value: string }[] {
+  const meta = lead.meta || {};
+  const ordered = [...DEFAULT_CONTACT_FORM.fields]
+    .filter((f) => !CORE_LEAD_META_IDS.has(f.id))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  const rows: { id: string; label: string; value: string }[] = [];
+  const seen = new Set<string>();
+
+  for (const field of ordered) {
+    const value = String(meta[field.id] ?? '').trim();
+    if (!value) continue;
+    rows.push({ id: field.id, label: field.label, value });
+    seen.add(field.id);
+  }
+
+  for (const [id, raw] of Object.entries(meta)) {
+    if (seen.has(id) || CORE_LEAD_META_IDS.has(id)) continue;
+    const value = String(raw ?? '').trim();
+    if (!value) continue;
+    rows.push({ id, label: id, value });
+  }
+
+  return rows;
+}
+
+/** Notas libres: meta.notes o texto de notes que no sea el dump del formulario. */
+function leadFreeNotes(lead: Lead): string {
+  const fromMeta = String(lead.meta?.notes ?? '').trim();
+  if (fromMeta) return fromMeta;
+  const notes = (lead.notes || '').trim();
+  if (!notes) return '';
+  // Si notes es el dump "Label: valor" (formateado al enviar), no lo repetimos aquí.
+  if (lead.meta && Object.keys(lead.meta).length > 0) {
+    const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
+    const looksLikeDump = lines.length > 0 && lines.every((l) => /^[^:]+:\s+.+/.test(l));
+    if (looksLikeDump) return '';
+  }
+  return notes;
+}
 
 type LeadFormState = {
   contactName: string;
@@ -315,7 +368,8 @@ export default function CRM() {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTab, setFilterTab] = useState<FilterTab>('Todos');
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [leadSort, setLeadSort] = useState<LeadSort>('recientes');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<LeadStatus | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -431,22 +485,44 @@ export default function CRM() {
     }
   };
 
-  const filteredLeads = leads.filter((l) => {
+  const filteredLeads = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      l.contactName.toLowerCase().includes(q) ||
-      l.companyName.toLowerCase().includes(q) ||
-      (l.email || '').toLowerCase().includes(q) ||
-      (l.phone || '').includes(q) ||
-      (l.serviceOfInterest || '').toLowerCase().includes(q);
+    let rows = leads.filter((l) => {
+      const matchesSearch =
+        !q ||
+        l.contactName.toLowerCase().includes(q) ||
+        l.companyName.toLowerCase().includes(q) ||
+        (l.email || '').toLowerCase().includes(q) ||
+        (l.phone || '').includes(q) ||
+        (l.serviceOfInterest || '').toLowerCase().includes(q) ||
+        (l.notes || '').toLowerCase().includes(q);
 
-    if (!matchesSearch) return false;
-    if (filterTab === 'Activos') return l.status !== 'Cliente Ganado' && l.status !== 'Cliente Perdido';
-    if (filterTab === 'Ganados') return l.status === 'Cliente Ganado';
-    if (filterTab === 'Perdidos') return l.status === 'Cliente Perdido';
-    return true;
-  });
+      if (!matchesSearch) return false;
+      if (filterTab === 'Activos') return l.status !== 'Cliente Ganado' && l.status !== 'Cliente Perdido';
+      if (filterTab === 'Ganados') return l.status === 'Cliente Ganado';
+      if (filterTab === 'Perdidos') return l.status === 'Cliente Perdido';
+      return true;
+    });
+
+    const byText = (a: string, b: string) => a.localeCompare(b, 'es', { sensitivity: 'base' });
+    rows = [...rows].sort((a, b) => {
+      switch (leadSort) {
+        case 'antiguos':
+          return leadSortTime(a) - leadSortTime(b);
+        case 'empresa':
+          return byText(a.companyName || '', b.companyName || '') || leadSortTime(b) - leadSortTime(a);
+        case 'estado': {
+          const ai = PIPELINE_STATUSES.indexOf(a.status);
+          const bi = PIPELINE_STATUSES.indexOf(b.status);
+          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || leadSortTime(b) - leadSortTime(a);
+        }
+        case 'recientes':
+        default:
+          return leadSortTime(b) - leadSortTime(a);
+      }
+    });
+    return rows;
+  }, [leads, searchTerm, filterTab, leadSort]);
 
   const metrics = {
     active: leads.filter((l) => l.status !== 'Cliente Ganado' && l.status !== 'Cliente Perdido').length,
@@ -508,33 +584,52 @@ export default function CRM() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex items-center bg-sa-panel border border-sa-border rounded-lg p-1 self-start">
+            <div className="flex items-center bg-sa-panel border border-sa-border rounded-xl p-1 self-start">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                  viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-sa-muted hover:text-sa-text',
+                )}
+                title="Vista lista"
+              >
+                <List className="h-4 w-4" />
+                Lista
+              </button>
               <button
                 type="button"
                 onClick={() => setViewMode('kanban')}
-                className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors', viewMode === 'kanban' ? 'bg-sa-border text-sa-text' : 'text-sa-faint hover:text-sa-text')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                  viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-sa-muted hover:text-sa-text',
+                )}
                 title="Vista kanban"
               >
                 <LayoutGrid className="h-4 w-4" />
                 Tablero
               </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors', viewMode === 'table' ? 'bg-sa-border text-sa-text' : 'text-sa-faint hover:text-sa-text')}
-                title="Vista tabla"
-              >
-                <List className="h-4 w-4" />
-                Lista
-              </button>
             </div>
+            <select
+              className="px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={leadSort}
+              onChange={(e) => setLeadSort(e.target.value as LeadSort)}
+              title="Ordenar"
+            >
+              <option value="recientes">Más recientes</option>
+              <option value="antiguos">Más antiguos</option>
+              <option value="empresa">Empresa A–Z</option>
+              <option value="estado">Por etapa</option>
+            </select>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sa-faint" />
               <input
                 type="text"
                 placeholder="Buscar empresa, contacto, email..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint"/>
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint"
+              />
             </div>
             <Can ability="crm.manage">
               <button
@@ -549,32 +644,37 @@ export default function CRM() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(['Todos', 'Activos', 'Ganados', 'Perdidos'] as FilterTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setFilterTab(tab)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
-                filterTab === tab
-                  ? 'bg-blue-600/15 text-blue-300 border-blue-500/40'
-                  : 'bg-sa-panel text-sa-faint border-sa-border hover:text-sa-text hover:border-sa-border-strong',
-              )}
-            >
-              {tab}
-              <span className="ml-1.5 text-[10px] opacity-70">{tabCounts[tab]}</span>
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {(['Todos', 'Activos', 'Ganados', 'Perdidos'] as FilterTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilterTab(tab)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
+                  filterTab === tab
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-sa-panel text-sa-muted border-sa-border hover:text-sa-text hover:border-sa-border-strong',
+                )}
+              >
+                {tab}
+                <span className="ml-1.5 text-[10px] opacity-80">{tabCounts[tab]}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-sa-muted">
+            Mostrando <strong className="text-sa-text">{filteredLeads.length}</strong> de {leads.length}
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Leads activos', value: metrics.active, icon: Target, tone: 'text-sky-400 bg-sky-500/10 border-sky-500/20' },
-          { label: 'Demos agendadas', value: metrics.demos, icon: Calendar, tone: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-          { label: 'Propuestas', value: metrics.proposals, icon: UsersIcon, tone: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-          { label: 'Ganados', value: metrics.won, icon: Trophy, tone: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+          { label: 'Leads activos', value: metrics.active, icon: Target, tone: 'text-sky-700 dark:text-sky-400 bg-sky-500/10 border-sky-500/25' },
+          { label: 'Demos agendadas', value: metrics.demos, icon: Calendar, tone: 'text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/25' },
+          { label: 'Propuestas', value: metrics.proposals, icon: UsersIcon, tone: 'text-indigo-700 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/25' },
+          { label: 'Ganados', value: metrics.won, icon: Trophy, tone: 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25' },
         ].map((m) => (
           <div key={m.label} className="bg-sa-panel border border-sa-border rounded-2xl p-4 flex items-center gap-3">
             <div className={cn('w-10 h-10 rounded-xl border flex items-center justify-center shrink-0', m.tone)}>
@@ -582,7 +682,7 @@ export default function CRM() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-sa-faint uppercase tracking-wider">{m.label}</p>
-              <h3 className="text-xl font-extrabold text-sa-text">{m.value}</h3>
+              <h3 className="text-xl font-extrabold text-sa-text tabular-nums">{m.value}</h3>
             </div>
           </div>
         ))}
@@ -637,16 +737,20 @@ export default function CRM() {
                       <span className={cn('w-2 h-2 rounded-full shrink-0', STATUS_META[status].bar)} />
                       <h3 className="text-[11px] font-bold text-sa-muted uppercase tracking-widest truncate">{status}</h3>
                     </div>
-                    <span >{columnLeads.length}</span>
+                    <span className="inline-flex min-w-[1.5rem] h-6 items-center justify-center rounded-md bg-sa-panel border border-sa-border text-[11px] font-bold text-sa-text">
+                      {columnLeads.length}
+                    </span>
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-[150px]">
                     {columnLeads.length === 0 && (
-                      <p className="text-[11px] text-[#475569] text-center py-6 border border-dashed border-sa-border rounded-xl">
+                      <p className="text-[11px] text-sa-faint text-center py-6 border border-dashed border-sa-border rounded-xl">
                         {can('crm.manage') ? 'Suelta aquí un prospecto' : 'Sin prospectos'}
                       </p>
                     )}
-                    {columnLeads.map((lead) => (
+                    {columnLeads.map((lead) => {
+                      const preview = notesPreview(lead.notes);
+                      return (
                       <div
                         key={lead.id}
                         draggable={can('crm.manage')}
@@ -662,27 +766,31 @@ export default function CRM() {
                         <div className={cn('absolute left-0 top-3 bottom-3 w-1 rounded-r', STATUS_META[status].bar)} />
                         <div className="pl-2">
                           <div className="flex justify-between items-start mb-1 gap-2">
-                            <h4 className="font-bold text-sa-text text-sm line-clamp-1">{lead.companyName}</h4>
+                            <h4 className="font-bold text-sa-text text-sm line-clamp-2 leading-snug">{lead.companyName}</h4>
                             <Can ability="crm.manage">
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(lead); }} title="Editar">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(lead); }} className="p-1 rounded-lg text-sa-muted hover:text-sa-text hover:bg-sa-border" title="Editar">
                                   <Pencil className="h-3.5 w-3.5" />
                                 </button>
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete(lead); }} className="p-1 rounded text-sa-muted hover:text-red-400 hover:bg-sa-border" title="Eliminar">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete(lead); }} className="p-1 rounded-lg text-sa-muted hover:text-red-500 hover:bg-sa-border" title="Eliminar">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
                             </Can>
                           </div>
-                          <p className="text-[11px] text-sa-muted mb-3">{lead.contactName}</p>
-                          <div className="mb-3">
-                            <span className="inline-block px-2 py-1 bg-sa-border text-sa-muted text-[10px] font-semibold rounded-md border border-sa-border-strong">
+                          <p className="text-[12px] text-sa-muted mb-2">{lead.contactName}</p>
+                          <div className="mb-2 flex flex-wrap gap-1.5">
+                            <span className="inline-block max-w-full px-2 py-1 bg-sa-canvas text-sa-muted text-[10px] font-semibold rounded-md border border-sa-border truncate" title={lead.serviceOfInterest || undefined}>
                               {lead.serviceOfInterest || 'Sin servicio'}
                             </span>
+                            <span className="inline-block px-2 py-1 text-sa-faint text-[10px] font-medium rounded-md">
+                              {formatDate(lead.createdAt)}
+                            </span>
                           </div>
-                          <div className="flex items-center justify-between pt-3 border-t border-sa-border gap-2">
-                            <p className="text-[10px] text-sa-faint line-clamp-1">{lead.notes || 'Sin notas'}</p>
-                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          {preview && (
+                            <p className="text-[11px] text-sa-faint mb-3 line-clamp-2 leading-relaxed">{preview}</p>
+                          )}
+                          <div className="flex items-center justify-end pt-3 border-t border-sa-border gap-1" onClick={(e) => e.stopPropagation()}>
                               {lead.phone && (
                                 <a
                                   href={`https://wa.me/${digitsOnly(lead.phone)}`}
@@ -697,17 +805,17 @@ export default function CRM() {
                               {lead.email && (
                                 <a
                                   href={`mailto:${lead.email}`}
-                                  className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center hover:bg-blue-500/20 border border-blue-500/20"
+                                  className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-700 dark:text-blue-400 flex items-center justify-center hover:bg-blue-500/20 border border-blue-500/20"
                                   title="Email"
                                 >
                                   <Mail className="h-3.5 w-3.5" />
                                 </a>
                               )}
-                            </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -717,33 +825,30 @@ export default function CRM() {
       ) : (
         <div className="bg-sa-panel border border-sa-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left text-sm min-w-[780px]">
-              <thead className="bg-sa-canvas text-[11px] uppercase tracking-wider text-sa-faint border-b border-sa-border">
+            <table className="w-full text-left text-sm min-w-[900px]">
+              <thead className="bg-sa-border/40 text-[11px] uppercase tracking-wider text-sa-faint border-b border-sa-border">
                 <tr>
-                  <th className="px-4 py-3 font-bold">Empresa</th>
-                  <th className="px-4 py-3 font-bold">Contacto</th>
-                  <th className="px-4 py-3 font-bold">Servicio</th>
-                  <th className="px-4 py-3 font-bold">Etapa</th>
-                  <th className="px-4 py-3 font-bold">Alta</th>
-                  <th className="px-4 py-3 font-bold text-right">Acciones</th>
+                  <th className="px-4 py-3.5 font-bold">Empresa / contacto</th>
+                  <th className="px-4 py-3.5 font-bold">Servicio</th>
+                  <th className="px-4 py-3.5 font-bold">Etapa</th>
+                  <th className="px-4 py-3.5 font-bold">Resumen</th>
+                  <th className="px-4 py-3.5 font-bold">Alta</th>
+                  <th className="px-4 py-3.5 font-bold text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                {filteredLeads.map((lead) => (
+              <tbody className="divide-y divide-sa-border">
+                {filteredLeads.map((lead) => {
+                  const preview = notesPreview(lead.notes);
+                  return (
                   <tr
                     key={lead.id}
                     onClick={() => setDetailLead(lead)}
-                    className="border-b border-sa-border/80 hover:bg-sa-border/30 cursor-pointer transition-colors"
+                    className="hover:bg-sa-border/40 cursor-pointer transition-colors"
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-3.5 w-3.5 text-sa-faint shrink-0" />
-                        <span className="font-semibold text-sa-text">{lead.companyName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div >{lead.contactName}</div>
-                      <div className="text-[11px] text-sa-faint flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    <td className="px-4 py-3.5">
+                      <div className="font-semibold text-sa-text">{lead.companyName}</div>
+                      <div className="text-[12px] text-sa-muted mt-0.5">{lead.contactName}</div>
+                      <div className="text-[11px] text-sa-faint flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                         {lead.phone && (
                           <span className="inline-flex items-center gap-1">
                             <Phone className="h-3 w-3" />
@@ -751,52 +856,60 @@ export default function CRM() {
                           </span>
                         )}
                         {lead.email && (
-                          <span className="inline-flex items-center gap-1">
+                          <span className="inline-flex items-center gap-1 truncate max-w-[180px]">
                             <Mail className="h-3 w-3" />
                             {lead.email}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sa-muted">{lead.serviceOfInterest || '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
+                      <span className="inline-flex max-w-[200px] px-2 py-1 rounded-md text-[11px] font-semibold bg-sa-canvas border border-sa-border text-sa-muted truncate" title={lead.serviceOfInterest || undefined}>
+                        {lead.serviceOfInterest || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
                       {can('crm.manage') ? (
                         <select
                           value={lead.status}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
-                          className="bg-sa-canvas border border-sa-border-strong rounded-lg text-[11px] font-semibold text-sa-text px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[180px]"
+                          className="bg-sa-input border border-sa-border rounded-lg text-[11px] font-semibold text-sa-text px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[180px]"
                         >
                           {PIPELINE_STATUSES.map((s) => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
                       ) : (
-                        <span className={cn('inline-flex px-2 py-1 rounded-md text-[10px] font-bold border', STATUS_META[lead.status].chip)}>
+                        <span className={cn('inline-flex px-2 py-1 rounded-md text-[10px] font-bold border', STATUS_META[lead.status]?.chip || '')}>
                           {lead.status}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sa-faint text-xs whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5 text-[12px] text-sa-faint max-w-[220px]">
+                      <span className="line-clamp-2">{preview || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-sa-muted text-xs whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         {lead.phone && (
-                          <a href={`https://wa.me/${digitsOnly(lead.phone)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg text-[#25D366] hover:bg-[#25D366]/10 flex items-center justify-center" title="WhatsApp">
+                          <a href={`https://wa.me/${digitsOnly(lead.phone)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg text-[#25D366] hover:bg-[#25D366]/10 flex items-center justify-center border border-transparent hover:border-[#25D366]/20" title="WhatsApp">
                             <MessageCircle className="h-4 w-4" />
                           </a>
                         )}
                         <Can ability="crm.manage">
-                          <button type="button" onClick={() => openEdit(lead)} title="Editar" className="p-2 rounded-lg text-sa-faint hover:text-sa-text hover:bg-sa-border/60 transition-colors">
+                          <button type="button" onClick={() => openEdit(lead)} title="Editar" className="w-8 h-8 rounded-lg text-sa-muted hover:text-sa-text hover:bg-sa-border/60 flex items-center justify-center transition-colors">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button type="button" onClick={() => setConfirmDelete(lead)} className="w-8 h-8 rounded-lg text-sa-muted hover:text-red-400 hover:bg-sa-border flex items-center justify-center" title="Eliminar">
+                          <button type="button" onClick={() => setConfirmDelete(lead)} className="w-8 h-8 rounded-lg text-sa-muted hover:text-red-500 hover:bg-sa-border flex items-center justify-center" title="Eliminar">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </Can>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -805,6 +918,7 @@ export default function CRM() {
 
       <DetailModal
         open={!!detailLead}
+        wide
         title={detailLead?.companyName || 'Prospecto'}
         subtitle={detailLead?.contactName || undefined}
         onClose={() => setDetailLead(null)}
@@ -823,7 +937,7 @@ export default function CRM() {
             {detailLead.email && (
               <a
                 href={`mailto:${detailLead.email}`}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/25"
               >
                 Email
               </a>
@@ -832,7 +946,7 @@ export default function CRM() {
               {detailLead.convertedClientId ? (
                 <Link
                   to="/admin/clients"
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors"
                   onClick={() => setDetailLead(null)}
                 >
                   <UserPlus className="h-3.5 w-3.5" />
@@ -843,7 +957,7 @@ export default function CRM() {
                   type="button"
                   disabled={converting}
                   onClick={() => void convertLead(detailLead)}
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-60 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-60 transition-colors"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
                   {converting ? 'Creando…' : 'Crear / abrir cliente'}
@@ -851,13 +965,15 @@ export default function CRM() {
               )}
               <button
                 type="button"
-                onClick={() => { const l = detailLead; setDetailLead(null); openEdit(l); }} className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors">
+                onClick={() => { const l = detailLead; setDetailLead(null); openEdit(l); }}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors"
+              >
                 Editar
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDelete(detailLead)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 hover:bg-red-500/10"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-700 dark:text-red-300 hover:bg-red-500/10"
               >
                 Eliminar
               </button>
@@ -866,52 +982,118 @@ export default function CRM() {
           </>
         )}
       >
-        {detailLead && (
-          <div className="space-y-5">
-            <DetailGrid>
-              <DetailItem label="Empresa" value={detailLead.companyName} />
-              <DetailItem label="Contacto" value={detailLead.contactName} />
-              <DetailItem label="Teléfono" value={detailLead.phone || '—'} />
-              <DetailItem label="Email" value={detailLead.email || '—'} />
-              <DetailItem label="Servicio de interés" value={detailLead.serviceOfInterest || '—'} />
-              <DetailItem label="Registrado" value={formatDate(detailLead.createdAt)} />
-              <DetailItem label="Notas" value={detailLead.notes || '—'} full />
-            </DetailGrid>
-
-            <div>
-              <p className="text-[11px] font-bold text-sa-faint uppercase tracking-wider mb-2">Etapa</p>
-              {can('crm.manage') ? (
-                <div className="flex flex-wrap gap-2">
-                  {PIPELINE_STATUSES.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => updateLeadStatus(detailLead.id, status)}
-                      className={cn(
-                        'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors',
-                        detailLead.status === status
-                          ? STATUS_META[status].chip
-                          : 'bg-sa-canvas text-sa-faint border-sa-border-strong hover:text-sa-text hover:border-sa-muted',
-                      )}
-                    >
-                      {status === 'Cliente Perdido' ? (
-                        <span className="inline-flex items-center gap-1"><XCircle className="h-3 w-3" />{status}</span>
-                      ) : status === 'Cliente Ganado' ? (
-                        <span className="inline-flex items-center gap-1"><Trophy className="h-3 w-3" />{status}</span>
-                      ) : (
-                        status
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <span className={cn('inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold border', STATUS_META[detailLead.status].chip)}>
+        {detailLead && (() => {
+          const metaRows = leadMetaEntries(detailLead);
+          const freeNotes = leadFreeNotes(detailLead);
+          return (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={cn('inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold border', STATUS_META[detailLead.status]?.chip || '')}>
                   {detailLead.status}
                 </span>
+                <span className="text-[11px] text-sa-faint">Alta {formatDate(detailLead.createdAt)}</span>
+              </div>
+
+              <section className="rounded-xl border border-sa-border bg-sa-canvas/50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-3">Contacto</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <DetailItem label="Empresa" value={detailLead.companyName} />
+                  <DetailItem label="Persona" value={detailLead.contactName} />
+                  <DetailItem
+                    label="Teléfono"
+                    value={detailLead.phone ? (
+                      <a href={`tel:${digitsOnly(detailLead.phone)}`} className="text-sa-text hover:text-blue-600 dark:hover:text-blue-400">
+                        {detailLead.phone}
+                      </a>
+                    ) : '—'}
+                  />
+                  <DetailItem
+                    label="Email"
+                    value={detailLead.email ? (
+                      <a href={`mailto:${detailLead.email}`} className="text-sa-text hover:text-blue-600 dark:hover:text-blue-400 break-all">
+                        {detailLead.email}
+                      </a>
+                    ) : '—'}
+                  />
+                  <DetailItem
+                    label="Servicio de interés"
+                    value={detailLead.serviceOfInterest || '—'}
+                    full
+                  />
+                </div>
+              </section>
+
+              {metaRows.length > 0 && (
+                <section className="rounded-xl border border-sa-border bg-sa-canvas/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-3">
+                    Respuestas del formulario
+                  </p>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                    {metaRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className={cn(
+                          'min-w-0',
+                          row.value.length > 80 || row.id === 'requirements' || row.id === 'message' ? 'sm:col-span-2' : '',
+                        )}
+                      >
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-0.5">{row.label}</dt>
+                        <dd className="text-[13px] text-sa-text whitespace-pre-wrap break-words leading-relaxed">{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
               )}
+
+              {freeNotes && (
+                <section className="rounded-xl border border-sa-border bg-sa-canvas/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-2">Notas</p>
+                  <p className="text-[13px] text-sa-text whitespace-pre-wrap break-words leading-relaxed">{freeNotes}</p>
+                </section>
+              )}
+
+              {!metaRows.length && !freeNotes && detailLead.notes && (
+                <section className="rounded-xl border border-sa-border bg-sa-canvas/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-2">Detalle</p>
+                  <p className="text-[13px] text-sa-text whitespace-pre-wrap break-words leading-relaxed">{detailLead.notes}</p>
+                </section>
+              )}
+
+              <section>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-sa-faint mb-2">Etapa del pipeline</p>
+                {can('crm.manage') ? (
+                  <div className="flex flex-wrap gap-2">
+                    {PIPELINE_STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => updateLeadStatus(detailLead.id, status)}
+                        className={cn(
+                          'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors',
+                          detailLead.status === status
+                            ? STATUS_META[status].chip
+                            : 'bg-sa-canvas text-sa-faint border-sa-border-strong hover:text-sa-text hover:border-sa-muted',
+                        )}
+                      >
+                        {status === 'Cliente Perdido' ? (
+                          <span className="inline-flex items-center gap-1"><XCircle className="h-3 w-3" />{status}</span>
+                        ) : status === 'Cliente Ganado' ? (
+                          <span className="inline-flex items-center gap-1"><Trophy className="h-3 w-3" />{status}</span>
+                        ) : (
+                          status
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={cn('inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold border', STATUS_META[detailLead.status].chip)}>
+                    {detailLead.status}
+                  </span>
+                )}
+              </section>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </DetailModal>
 
       <ConfirmDialog

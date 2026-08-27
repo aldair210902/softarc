@@ -25,6 +25,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/support': 'Tickets',
   '/admin/infra/catalog': 'Demos de sistemas',
   '/admin/infra/web-pages': 'Contenido web',
+  '/admin/infra/contact-form': 'Formulario contacto',
   '/admin/infra/media': 'Imágenes',
   '/admin/infra/providers': 'Proveedores',
   '/admin/infra/reseller-plans': 'Planes de reventa',
@@ -108,6 +109,7 @@ export default function AdminLayout() {
       items: [
         { name: 'Demos de sistemas', path: '/admin/infra/catalog', icon: LayoutGrid },
         { name: 'Contenido web', path: '/admin/infra/web-pages', icon: FilePen },
+        { name: 'Formulario contacto', path: '/admin/infra/contact-form', icon: ClipboardList },
         { name: 'Imágenes', path: '/admin/infra/media', icon: Images },
       ],
     },

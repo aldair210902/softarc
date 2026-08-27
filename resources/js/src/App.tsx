@@ -7,6 +7,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/Toast';
 import { DocumentTitle } from './components/DocumentTitle';
+import { ScrollToTop } from './components/ScrollToTop';
 import RequireAuth from './components/RequireAuth';
 import PublicLayout from './layouts/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -31,6 +32,7 @@ const Expenses = lazy(() => import('./pages/admin/finances/Expenses'));
 const Reports = lazy(() => import('./pages/admin/finances/Reports'));
 const Catalog = lazy(() => import('./pages/admin/infra/Catalog'));
 const WebPages = lazy(() => import('./pages/admin/infra/WebPages'));
+const ContactFormAdmin = lazy(() => import('./pages/admin/infra/ContactFormAdmin'));
 const MediaLibrary = lazy(() => import('./pages/admin/infra/MediaLibrary'));
 const Providers = lazy(() => import('./pages/admin/infra/Providers'));
 const ResellerPlans = lazy(() => import('./pages/admin/infra/ResellerPlans'));
@@ -58,6 +60,7 @@ export default function App() {
     <ToastProvider>
       <BrowserRouter basename={basename}>
         <DocumentTitle />
+        <ScrollToTop />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<PublicLayout />}>
@@ -85,6 +88,7 @@ export default function App() {
               <Route path="finances/reports" element={<Reports />} />
               <Route path="infra/catalog" element={<Catalog />} />
               <Route path="infra/web-pages" element={<WebPages />} />
+              <Route path="infra/contact-form" element={<ContactFormAdmin />} />
               <Route path="infra/media" element={<MediaLibrary />} />
               <Route path="infra/providers" element={<Providers />} />
               <Route path="infra/reseller-plans" element={<ResellerPlans />} />

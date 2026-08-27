@@ -13,12 +13,10 @@ import {
   Box, 
   ShieldCheck, 
   Mail, 
-  Send, 
   Store, 
   Smartphone, 
   Sparkles, 
   Zap, 
-  HelpCircle,
   Clock,
   Layers,
   Database,
@@ -30,10 +28,11 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { apiGet, apiMutate } from '../../lib/api';
+import { apiGet } from '../../lib/api';
 import { useCompanySettings } from '../../hooks/useCompanySettings';
 import { SaaSProduct } from '../../types';
 import { ShoppingCart, LayoutTemplate, Puzzle, FlaskConical } from 'lucide-react';
+import { ContactForm } from '../../components/ContactForm';
 
 const iconMap: Record<string, any> = {
   ShoppingCart,
@@ -46,46 +45,6 @@ const iconMap: Record<string, any> = {
   Globe,
   Server
 };
-
-const SERVICE_OPTIONS = [
-  {
-    value: 'Sistemas web / ERP',
-    title: 'Sistema listo para usar',
-    subtitle: 'SaaS / ERP',
-    hint: 'Software listo para vender, controlar stock o gestionar tu empresa sin armarlo desde cero. Ej.: tienda online, inventario, cobros.',
-    Icon: Cloud,
-  },
-  {
-    value: 'Desarrollo a la Medida',
-    title: 'Software a tu medida',
-    subtitle: 'Proyecto a pedido',
-    hint: 'Si tu forma de trabajar es especial y ningún sistema genérico te alcanza. Lo diseñamos y programamos para ti.',
-    Icon: Code2,
-  },
-  {
-    value: 'Páginas Web / Landing Pages',
-    title: 'Página web o landing',
-    subtitle: 'Presencia online',
-    hint: 'Web de tu empresa, catálogo o página para captar clientes, llamadas y WhatsApp. Ideal si aún no tienes sitio o el actual no convierte.',
-    Icon: Globe,
-  },
-  {
-    value: 'Asesoría Técnica y Hosting',
-    title: 'Hosting y soporte',
-    subtitle: 'Infraestructura',
-    hint: 'Que tu web o sistema esté siempre online, rápido, con respaldos y alguien que lo cuide día a día.',
-    Icon: Server,
-  },
-  {
-    value: 'No estoy seguro — quiero asesoría',
-    title: 'No estoy seguro aún',
-    subtitle: 'Te orientamos',
-    hint: 'Cuéntanos el problema de tu negocio (ventas, stock, clientes, web…) y te recomendamos la mejor opción.',
-    Icon: HelpCircle,
-  },
-] as const;
-
-const DEFAULT_SERVICE_OF_INTEREST = SERVICE_OPTIONS[4].value;
 
 const TECH_PILLS = ['React', 'Laravel', 'MySQL', 'Tailwind', 'VPS Linux'] as const;
 
@@ -109,36 +68,56 @@ const PILLAR_ICON_MAP: Record<string, React.ComponentType<{ className?: string }
 const DEFAULT_HOME_PILLARS: HomePillar[] = [
   {
     key: 'saas',
-    title: '1. Sistemas web',
-    description: 'Software para alquilar o comprar: tienda, gestión/ERP, flota y más. Cotizamos según tu necesidad.',
-    bullets: ['Alquiler mensual o pago único.', 'Hosting incluido en alquiler.', 'Capacitación para que operes tú.'],
+    title: 'Sistemas web listos',
+    description:
+      'Software ya preparado para tu negocio (tienda, gestión/ERP, flota, etc.). Lo alquilas mes a mes o lo compras una vez.',
+    bullets: [
+      'No lo armamos desde cero: partimos de un sistema listo.',
+      'Alquiler (hosting incluido) o compra (pago único).',
+      'Te capacitamos para que lo uses tú.',
+    ],
     ctaLabel: 'Ver sistemas',
     ctaPath: '/servicios/saas',
     icon: 'Cloud',
   },
   {
     key: 'medida',
-    title: '2. Desarrollo a la Medida',
-    description: 'Software Factory exclusivo creado según los flujos únicos de tu organización.',
-    bullets: ['Código propio y exclusivo.', 'Arquitectura altamente escalable.', 'Integración API con terceros.'],
-    ctaLabel: 'Cotizar Proyecto',
+    title: 'Desarrollo a la medida',
+    description:
+      'Cuando un sistema listo no encaja con cómo trabajas. Diseñamos y programamos el software según tu proceso.',
+    bullets: [
+      'Hecho a pedido: flujos, roles y reportes tuyos.',
+      'Alcance y contrato claros antes de empezar.',
+      'Entrega con capacitación y documentos.',
+    ],
+    ctaLabel: 'Cotizar proyecto',
     ctaPath: '/servicios/a-la-medida',
     icon: 'Code2',
   },
   {
     key: 'web',
-    title: '3. Páginas Web & Blogs',
-    description: 'Sitios de alta conversión, blogs SEO y presencia digital con velocidad extrema.',
-    bullets: ['Landing pages de conversión.', 'Webs corporativas administrables.', 'Arquitectura SEO on-page.'],
+    title: 'Páginas web & blogs',
+    description:
+      'Tu presencia en internet: landing, web de empresa o blog. No es un sistema de gestión; es para captar clientes y mostrar tu marca.',
+    bullets: [
+      'Landing o web corporativa adaptable a celular.',
+      'Botones a WhatsApp y formularios de contacto.',
+      'SEO básico según el alcance acordado.',
+    ],
     ctaLabel: 'Ver servicios web',
     ctaPath: '/servicios/paginas-web-blogs',
     icon: 'Globe',
   },
   {
     key: 'infra',
-    title: '4. Hosting & Infra',
-    description: 'Dominios, hosting y gestión técnica para tu sistema o web.',
-    bullets: ['Reventa con seguimiento SoftArc.', 'Respaldos según el plan.', 'Soporte de puesta en marcha.'],
+    title: 'Dominios & hosting',
+    description:
+      'Que tu web o sistema esté online: dominio, hosting y puesta en marcha con seguimiento SoftArc.',
+    bullets: [
+      'Reventa según proveedor (Planeta, Hostinger, etc.).',
+      'En alquiler de software, el hosting suele ir incluido.',
+      'Soporte de alta y configuración inicial.',
+    ],
     ctaLabel: 'Ver infraestructura',
     ctaPath: '/servicios/infraestructura-soporte',
     icon: 'Server',
@@ -153,17 +132,6 @@ export default function Home() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [selectedProductForGallery, setSelectedProductForGallery] = useState<SaaSProduct | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  const [formData, setFormData] = useState({
-    contactName: '',
-    companyName: '',
-    phone: '',
-    email: '',
-    serviceOfInterest: DEFAULT_SERVICE_OF_INTEREST,
-    notes: ''
-  });
-  const [submitted, setSubmitted] = useState(false);
-  const [formError, setFormError] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
@@ -190,19 +158,6 @@ export default function Home() {
       })
       .catch(() => setPillars(DEFAULT_HOME_PILLARS));
   }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    try {
-      await apiMutate('post', '/api/leads', formData);
-      setSubmitted(true);
-      setFormData({ contactName: '', companyName: '', phone: '', email: '', serviceOfInterest: DEFAULT_SERVICE_OF_INTEREST, notes: '' });
-      setTimeout(() => setSubmitted(false), 5000);
-    } catch {
-      setFormError('No se pudo enviar la solicitud. Inténtalo de nuevo o escríbenos por WhatsApp.');
-    }
-  };
 
   const nextImage = () => {
     if (selectedProductForGallery && selectedProductForGallery.imageUrls) {
@@ -317,16 +272,19 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-sa-text mb-4">Nuestros servicios</h2>
-            <p className="text-lg text-sa-muted">Elige el tipo de solución que necesitas. Te guiamos según el objetivo de tu negocio.</p>
+            <p className="text-lg text-sa-muted">
+              Cuatro caminos distintos: sistema listo, software a pedido, página web, o dominio/hosting. Elige según lo que necesitas ahora.
+            </p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-8">
             {pillars.map((pillar) => {
               const Icon = PILLAR_ICON_MAP[pillar.icon] || Cloud;
               return (
-                <div
+                <Link
                   key={pillar.key}
                   id={pillar.key}
+                  to={pillar.ctaPath}
                   className="group bg-sa-panel p-8 md:p-10 rounded-2xl border border-sa-border hover:border-blue-500/50 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(59,130,246,0.15)] transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" aria-hidden />
@@ -346,14 +304,11 @@ export default function Home() {
                         ))}
                       </ul>
                     </div>
-                    <Link
-                      to={pillar.ctaPath}
-                      className="group/btn inline-flex items-center justify-center gap-2 mt-2 px-5 py-3 text-sm font-semibold text-blue-500 hover:text-blue-400 transition-colors"
-                    >
-                      {pillar.ctaLabel} <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
+                    <span className="group/btn inline-flex items-center justify-center gap-2 mt-2 px-5 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      {pillar.ctaLabel} <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </span>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -669,110 +624,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-sa-panel p-8 md:p-10 rounded-2xl border border-sa-border shadow-2xl relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent rounded-2xl pointer-events-none"></div>
-              {submitted ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="h-full flex flex-col items-center justify-center text-center py-16"
-                >
-                  <div className="w-20 h-20 bg-green-500/10 border border-green-500/30 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle2 className="h-10 w-10 text-green-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-sa-text mb-3">¡Solicitud Enviada!</h3>
-                  <p className="text-sa-muted">Nos pondremos en contacto contigo muy pronto para brindarte la mejor solución.</p>
-                </motion.div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">Nombre Completo</label>
-                      <input required type="text" value={formData.contactName} onChange={e => setFormData({...formData, contactName: e.target.value})} placeholder="Tu nombre" className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">Empresa / Tienda</label>
-                      <input required type="text" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Razón social" className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">Teléfono / WhatsApp</label>
-                      <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+51 999..." className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">Correo Electrónico</label>
-                      <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="correo@empresa.com" className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">
-                      ¿Qué necesitas?
-                    </label>
-                    <p className="text-xs text-sa-muted mb-3 leading-relaxed">
-                      Elige la opción que más se acerque. Si no estás seguro, deja marcada la última y descríbenos tu situación.
-                    </p>
-                    <div className="grid gap-2.5">
-                      {SERVICE_OPTIONS.map(({ value, title, subtitle, hint, Icon }) => {
-                        const selected = formData.serviceOfInterest === value;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, serviceOfInterest: value })}
-                            className={`w-full text-left rounded-xl border px-3.5 py-3 transition-colors ${
-                              selected
-                                ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/40'
-                                : 'border-sa-border bg-sa-input hover:border-sa-border-strong'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div
-                                className={`mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border ${
-                                  selected ? 'border-blue-500/40 bg-blue-500/15 text-blue-400' : 'border-sa-border bg-sa-panel-2 text-sa-faint'
-                                }`}
-                              >
-                                <Icon className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                  <span className="text-sm font-semibold text-sa-text">{title}</span>
-                                  <span className="text-[11px] text-sa-faint">{subtitle}</span>
-                                </div>
-                                <p className="text-xs text-sa-muted mt-1 leading-relaxed">{hint}</p>
-                              </div>
-                              <span
-                                className={`mt-1 w-4 h-4 rounded-full border flex-shrink-0 ${
-                                  selected ? 'border-blue-500 bg-blue-500' : 'border-sa-border-strong'
-                                }`}
-                                aria-hidden
-                              />
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-sa-faint uppercase tracking-wider mb-2">Mensaje / Requerimientos</label>
-                    <textarea
-                      rows={3}
-                      value={formData.notes}
-                      onChange={e => setFormData({...formData, notes: e.target.value})}
-                      placeholder="Ej.: Vendo por WhatsApp y quiero ordenar pedidos e inventario… / Necesito una web para mi negocio…"
-                      className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint"
-                    />
-                  </div>
-                  {formError && (
-                    <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">{formError}</p>
-                  )}
-                  <button type="submit" className="w-full inline-flex items-center justify-center px-6 py-3.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-lg shadow-blue-900/20">
-                    Enviar Solicitud Comercial
-                    <Send className="ml-2 h-5 w-5" />
-                  </button>
-                </form>
-              )}
-            </div>
+            <ContactForm />
           </div>
         </div>
       </section>

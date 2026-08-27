@@ -14,6 +14,7 @@ export const ROUTE_PERMISSIONS: Record<string, string[]> = {
   '/admin/finances/reports': ['finances.manage', 'finances.view'],
   '/admin/infra/catalog': ['catalog.manage', 'catalog.view'],
   '/admin/infra/web-pages': ['catalog.manage', 'settings.manage'],
+  '/admin/infra/contact-form': ['catalog.manage', 'settings.manage'],
   '/admin/infra/media': ['catalog.manage', 'catalog.view', 'settings.manage'],
   '/admin/infra/providers': ['servers.manage', 'servers.view', 'domains.manage', 'domains.view'],
   '/admin/infra/reseller-plans': ['servers.manage', 'servers.view', 'domains.manage', 'domains.view'],

@@ -9,6 +9,7 @@ export interface Lead {
   serviceOfInterest: string;
   status: LeadStatus;
   notes: string;
+  meta?: Record<string, string>;
   createdAt: string;
   convertedClientId?: string | null;
 }

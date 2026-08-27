@@ -20,6 +20,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/admin/support': 'Tickets',
   '/admin/infra/catalog': 'Demos de sistemas',
   '/admin/infra/web-pages': 'Contenido web',
+  '/admin/infra/contact-form': 'Formulario contacto',
   '/admin/infra/media': 'Imágenes',
   '/admin/infra/providers': 'Proveedores',
   '/admin/infra/reseller-plans': 'Planes de reventa',

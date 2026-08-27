@@ -14,6 +14,11 @@ class Lead extends Model
         'service_of_interest',
         'status',
         'notes',
+        'meta',
         'converted_client_id',
+    ];
+
+    protected $casts = [
+        'meta' => 'array',
     ];
 }

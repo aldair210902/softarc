@@ -28,8 +28,21 @@ class LeadController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'serviceOfInterest' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
+            'meta' => ['nullable', 'array'],
             'status' => ['nullable', 'string', 'max:100'],
         ]);
+
+        $meta = [];
+        if (! empty($data['meta']) && is_array($data['meta'])) {
+            foreach ($data['meta'] as $key => $value) {
+                if (! is_string($key) || $key === '') {
+                    continue;
+                }
+                if (is_scalar($value) || $value === null) {
+                    $meta[$key] = (string) ($value ?? '');
+                }
+            }
+        }
 
         $lead = Lead::query()->create([
             'contact_name' => $data['contactName'],
@@ -38,6 +51,7 @@ class LeadController extends Controller
             'email' => $data['email'] ?? null,
             'service_of_interest' => $data['serviceOfInterest'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'meta' => $meta ?: null,
             'status' => $data['status'] ?? 'Nuevo Prospecto',
         ]);
 

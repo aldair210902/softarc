@@ -14,9 +14,8 @@
         "noUnusedLocals": false,
         "noUnusedParameters": false,
         "noFallthroughCasesInSwitch": true,
-        "baseUrl": ".",
         "paths": {
-            "@/*": ["resources/js/src/*"]
+            "@/*": ["./resources/js/src/*"]
         }
     },
     "include": ["resources/js/src/**/*.ts", "resources/js/src/**/*.tsx"]
