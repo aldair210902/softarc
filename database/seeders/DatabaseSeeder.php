@@ -68,7 +68,7 @@ class DatabaseSeeder extends Seeder
                     'city' => 'Lima',
                     'country' => 'Perú',
                     'legalRepresentative' => 'Aldair Flores - Lead Software Architect',
-                    'brandSlogan' => 'Automatización comercial y software modular para empresas de alto rendimiento',
+                    'brandSlogan' => 'Sistemas listos, a medida, páginas web y hosting. Cotizamos según tu negocio.',
                     'salesPhone' => '+51 987 654 321',
                     'salesWhatsapp' => '51987654321',
                     'whatsappWelcomeMessage' => 'Hola Software Architec, deseo cotizar una solución tecnológica para mi empresa.',
