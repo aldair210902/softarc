@@ -5,6 +5,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Can } from '../../../components/Can';
 import { apiGet, apiMutate, apiUpload } from '../../../lib/api';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { useToast } from '../../../components/ui/Toast';
 
 type MediaItem = {
   path: string;
@@ -35,6 +36,7 @@ function usageLabel(item: MediaItem): string {
 }
 
 export default function MediaLibrary() {
+  const { toast } = useToast();
   const [data, setData] = useState<MediaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -88,13 +90,24 @@ export default function MediaLibrary() {
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
-    await apiMutate('delete', '/api/media', {
-      path: pendingDelete.path,
-      force: forceDelete || undefined,
-    });
-    setPendingDelete(null);
-    setForceDelete(false);
-    load();
+    const target = pendingDelete;
+    try {
+      const qs = new URLSearchParams({
+        path: target.path,
+        ...(forceDelete || target.used ? { force: '1' } : {}),
+      });
+      await apiMutate('delete', `/api/media?${qs.toString()}`);
+      toast('success', 'Imagen eliminada', target.name);
+      setPendingDelete(null);
+      setForceDelete(false);
+      load();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'No se pudo eliminar la imagen.';
+      toast('error', 'Error al eliminar', msg);
+      throw err;
+    }
   };
 
   const stats = data?.stats || { total: 0, used: 0, unused: 0 };
@@ -253,7 +266,7 @@ export default function MediaLibrary() {
         }
         confirmText={pendingDelete?.used ? 'Quitar y eliminar' : 'Eliminar'}
         isDestructive
-        onConfirm={() => { void confirmDelete(); }}
+        onConfirm={confirmDelete}
         onCancel={() => { setPendingDelete(null); setForceDelete(false); }}
       />
     </div>

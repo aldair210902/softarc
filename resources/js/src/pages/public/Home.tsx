@@ -30,9 +30,14 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { apiGet } from '../../lib/api';
 import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { useTheme } from '../../context/ThemeContext';
+import { resolveIsotipoUrl } from '../../lib/brandAssets';
 import { SaaSProduct } from '../../types';
 import { ShoppingCart, LayoutTemplate, Puzzle, FlaskConical } from 'lucide-react';
 import { ContactForm } from '../../components/ContactForm';
+import { cn } from '../../lib/utils';
+import { publicSlogan } from '../../lib/defaults';
+import { normalizeBrandSrc } from '../../lib/brandAssets';
 
 const iconMap: Record<string, any> = {
   ShoppingCart,
@@ -126,6 +131,15 @@ const DEFAULT_HOME_PILLARS: HomePillar[] = [
 
 export default function Home() {
   const { settings } = useCompanySettings();
+  const { resolved } = useTheme();
+  const brandName = (settings.commercialName || 'Software Architec').trim();
+  const isotipoSrc = resolveIsotipoUrl(settings, resolved);
+  const slogan = publicSlogan(settings.brandSlogan);
+  const whatsappDigits = (settings.salesWhatsapp || '').replace(/\D/g, '');
+  const whatsappUrl = whatsappDigits
+    ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent('Hola, quiero cotizar un sistema / servicio con Software Architec.')}`
+    : '#contact';
+
   const [activeProducts, setActiveProducts] = useState<SaaSProduct[]>([]);
   const [pillars, setPillars] = useState<HomePillar[]>(DEFAULT_HOME_PILLARS);
   
@@ -133,6 +147,9 @@ export default function Home() {
   const [selectedProductForGallery, setSelectedProductForGallery] = useState<SaaSProduct | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  const heroProduct = activeProducts.find((p) => (p.imageUrls?.length || 0) > 0) || activeProducts[0] || null;
+  const heroShot = heroProduct?.imageUrls?.[0] ? normalizeBrandSrc(heroProduct.imageUrls[0]) : null;
 
   useEffect(() => {
     apiGet<SaaSProduct[]>('/api/catalog')
@@ -200,72 +217,135 @@ export default function Home() {
 
   return (
     <div className="flex flex-col overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative pt-24 pb-32 overflow-hidden bg-sa-canvas">
-        {/* Ambient Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.45 }}
-              className="text-sm md:text-base font-bold tracking-[0.2em] uppercase text-blue-500 mb-4"
-            >
-              {settings.commercialName || 'SoftArc'}
-            </motion.p>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
+      {/* Hero: marca + 1 beneficio + 1 frase + CTAs + visual de producto */}
+      <section className="relative min-h-[min(100svh,920px)] flex flex-col justify-end overflow-hidden bg-sa-canvas">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 55% at 70% 20%, rgba(37,99,235,0.14), transparent 55%), radial-gradient(ellipse 60% 40% at 10% 80%, rgba(15,23,42,0.06), transparent 50%), linear-gradient(180deg, var(--sa-canvas) 0%, var(--sa-panel-2) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.35] dark:opacity-[0.2] pointer-events-none"
+          aria-hidden
+          style={{
+            backgroundImage:
+              'linear-gradient(var(--sa-border) 1px, transparent 1px), linear-gradient(90deg, var(--sa-border) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+            maskImage: 'linear-gradient(180deg, black 0%, transparent 85%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-10 md:pb-14 flex flex-col gap-10 lg:gap-12">
+          <div className="max-w-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-5xl md:text-6xl lg:text-7xl font-semibold text-sa-text tracking-tighter mb-6 leading-tight"
+              className="mb-7 flex items-center gap-3 sm:gap-4 min-w-0"
             >
-              Automatización comercial y tecnología modular.
+              {isotipoSrc ? (
+                <img
+                  src={isotipoSrc}
+                  alt=""
+                  className="h-12 w-12 sm:h-14 sm:w-14 object-contain shrink-0"
+                />
+              ) : null}
+              <p className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-sa-text leading-none truncate">
+                {brandName}
+              </p>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              className="text-2xl sm:text-3xl md:text-[2.25rem] font-semibold text-sa-text tracking-tight leading-snug mb-4"
+            >
+              Software que ordena y hace crecer tu negocio.
             </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-lg md:text-xl text-sa-muted mb-10 max-w-2xl mx-auto leading-relaxed font-medium"
+
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.14 }}
+              className="text-base sm:text-lg text-sa-muted max-w-xl leading-relaxed mb-8"
             >
-              {settings.brandSlogan?.trim() ||
-                'Software web para alquilar o comprar, a la medida, páginas y hosting — cotizamos según tu negocio.'}
+              {slogan}
             </motion.p>
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-col sm:flex-row justify-center gap-4"
+              className="flex flex-col sm:flex-row gap-3"
             >
-              <a href="#contact" className="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all duration-300 shadow-[0_4px_20px_rgba(37,99,235,0.2)] hover:shadow-[0_4px_25px_rgba(37,99,235,0.4)]">
-                Contactar por WhatsApp / formulario
+              <a
+                href={whatsappUrl}
+                target={whatsappDigits ? '_blank' : undefined}
+                rel={whatsappDigits ? 'noopener noreferrer' : undefined}
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Cotizar por WhatsApp
               </a>
               <a
                 href="#demos"
-                className="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold text-sa-text bg-sa-panel border border-sa-border hover:border-blue-500/50 rounded-xl transition-all duration-300"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-semibold text-sa-text bg-sa-panel/80 border border-sa-border hover:border-blue-500/40 rounded-xl transition-colors backdrop-blur-sm"
               >
                 Ver ejemplos
+                <ArrowRight className="h-4 w-4" />
               </a>
             </motion.div>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="relative w-full"
+          >
+            <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] max-h-[420px] overflow-hidden rounded-t-2xl border border-b-0 border-sa-border bg-sa-panel shadow-[0_-8px_40px_rgba(15,23,42,0.08)]">
+              <div className="h-9 border-b border-sa-border bg-sa-panel-2 flex items-center px-4 gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-sa-border-strong" />
+                <span className="w-2.5 h-2.5 rounded-full bg-sa-border-strong" />
+                <span className="w-2.5 h-2.5 rounded-full bg-sa-border-strong" />
+                <span className="ml-3 text-[11px] text-sa-faint truncate font-medium">
+                  {heroProduct?.name || 'Vista de sistema SoftArc'}
+                </span>
+              </div>
+              {heroShot ? (
+                <img
+                  src={heroShot}
+                  alt={heroProduct?.name || 'Captura de sistema'}
+                  className="w-full h-[calc(100%-2.25rem)] object-cover object-top"
+                />
+              ) : (
+                <div className="h-[calc(100%-2.25rem)] relative overflow-hidden bg-gradient-to-br from-sa-panel-2 via-sa-canvas to-blue-600/10">
+                  <div className="absolute inset-0 flex">
+                    <div className="w-[22%] border-r border-sa-border bg-sa-panel/80 p-3 space-y-2 hidden sm:block">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className={cn('h-2.5 rounded bg-sa-border', i === 1 && 'w-3/4 bg-blue-500/40')} />
+                      ))}
+                    </div>
+                    <div className="flex-1 p-4 sm:p-6 space-y-4">
+                      <div className="h-3 w-1/3 rounded bg-sa-border" />
+                      <div className="grid grid-cols-3 gap-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="h-16 sm:h-20 rounded-lg border border-sa-border bg-sa-panel/70" />
+                        ))}
+                      </div>
+                      <div className="h-24 sm:h-32 rounded-lg border border-sa-border bg-sa-panel/50" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
         </div>
       </section>
-
-      {/* Merit Bar / Valor Técnico */}
-      <div className="border-b border-sa-border bg-sa-panel/40 backdrop-blur-sm relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-12 md:gap-16 text-sm md:text-base font-semibold text-sa-text">
-            <div className="flex items-center gap-2 text-sa-muted"><span className="text-xl">🚀</span> Puesta en marcha y capacitación</div>
-            <div className="flex items-center gap-2 text-sa-muted"><span className="text-xl">⚡</span> Alquiler o compra según tu caso</div>
-            <div className="flex items-center gap-2 text-sa-muted"><span className="text-xl">🛡️</span> Contacto directo por WhatsApp</div>
-          </div>
-        </div>
-      </div>
 
       {/* Services Section - 4 Pillars */}
       <section id="services" className="py-24 bg-sa-canvas border-t border-sa-border relative">
@@ -318,100 +398,134 @@ export default function Home() {
       {/* Demos Section */}
       <section id="demos" className="py-24 bg-sa-canvas border-t border-sa-border">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-sa-text mb-4">Ejemplos de sistemas</h2>
-            <p className="text-lg text-sa-muted">Capturas y fichas de sistemas. Cotiza por WhatsApp; no son demos interactivas.</p>
+          <div className="max-w-2xl mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-sa-text mb-3">Ejemplos de sistemas</h2>
+            <p className="text-lg text-sa-muted leading-relaxed">
+              Capturas reales de lo que entregamos. Cotiza por WhatsApp; no son demos en vivo.
+            </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            {activeProducts.length === 0 ? (
-              <div className="lg:col-span-3 bg-sa-panel border border-dashed border-sa-border rounded-2xl p-12 text-center">
-                <Box className="h-10 w-10 text-sa-faint mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-sa-text mb-2">Pronto publicaremos capturas</h3>
-                <p className="text-sm text-sa-muted max-w-md mx-auto mb-6">
-                  Mientras tanto, escríbenos y te mostramos ejemplos del tipo de sistema que necesitas (tienda, flota, ERP, etc.).
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link
-                    to="/#contact"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors"
-                  >
-                    Contactar <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    to="/servicios/saas"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-sa-text bg-sa-canvas border border-sa-border hover:border-blue-500/50 transition-colors"
-                  >
-                    Ver sistemas web
-                  </Link>
+          {activeProducts.length === 0 ? (
+            <div className="relative overflow-hidden rounded-2xl border border-sa-border bg-sa-panel">
+              <div
+                className="absolute inset-0 pointer-events-none opacity-80"
+                aria-hidden
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(37,99,235,0.08) 0%, transparent 45%), linear-gradient(180deg, var(--sa-panel) 0%, var(--sa-panel-2) 100%)',
+                }}
+              />
+              <div className="relative grid lg:grid-cols-2 gap-0">
+                <div className="p-8 md:p-12 flex flex-col justify-center">
+                  <h3 className="text-2xl font-semibold text-sa-text mb-3 tracking-tight">
+                    Pronto verás capturas aquí
+                  </h3>
+                  <p className="text-sa-muted leading-relaxed mb-8 max-w-md">
+                    Mientras tanto, cuéntanos tu caso (tienda, flota, ERP, web…) y te mostramos ejemplos por WhatsApp.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <a
+                      href={whatsappUrl}
+                      target={whatsappDigits ? '_blank' : undefined}
+                      rel={whatsappDigits ? 'noopener noreferrer' : undefined}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Pedir ejemplos
+                    </a>
+                    <Link
+                      to="/servicios/saas"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-sa-text border border-sa-border hover:border-blue-500/40 transition-colors"
+                    >
+                      Ver sistemas listos
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="min-h-[220px] lg:min-h-full border-t lg:border-t-0 lg:border-l border-sa-border bg-sa-canvas/60 p-6 flex items-end">
+                  <div className="w-full aspect-[4/3] rounded-xl border border-sa-border bg-gradient-to-br from-sa-panel to-sa-canvas overflow-hidden relative">
+                    <div className="absolute inset-x-0 top-0 h-8 border-b border-sa-border bg-sa-panel-2 flex items-center px-3 gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-sa-border-strong" />
+                      <span className="w-2 h-2 rounded-full bg-sa-border-strong" />
+                      <span className="w-2 h-2 rounded-full bg-sa-border-strong" />
+                    </div>
+                    <div className="absolute inset-0 top-8 p-4 grid grid-cols-2 gap-3 content-start">
+                      <div className="h-14 rounded-lg bg-sa-border/60" />
+                      <div className="h-14 rounded-lg bg-sa-border/40" />
+                      <div className="col-span-2 h-20 rounded-lg bg-blue-500/10 border border-blue-500/15" />
+                    </div>
+                  </div>
                 </div>
               </div>
-            ) : (
-              activeProducts.map((product) => {
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {activeProducts.map((product, index) => {
               const Icon = iconMap[product.iconName] || Box;
               const productWhatsappUrl = `https://wa.me/${settings.salesWhatsapp}?text=${encodeURIComponent('Hola, me interesa información sobre el sistema: ' + product.name)}`;
+              const cover = product.imageUrls?.[0]
+                ? normalizeBrandSrc(product.imageUrls[0])
+                : null;
 
               return (
-                <div key={product.id} className="group flex flex-col border border-sa-border rounded-2xl overflow-hidden hover:border-blue-500/50 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(59,130,246,0.15)] transition-all duration-300 bg-sa-panel">
-                  <div className="h-56 bg-sa-canvas relative overflow-hidden p-4 flex items-end justify-center border-b border-sa-border">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    {/* Browser/System Frame */}
-                    <div className="w-full h-[180px] bg-sa-panel-2 rounded-t-xl border-t border-x border-sa-border shadow-2xl overflow-hidden relative group-hover:scale-105 transition-transform duration-500 flex flex-col z-10">
-                      <div className="h-6 bg-sa-canvas border-b border-sa-border flex items-center px-3 gap-1.5 shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-sa-faint"></div>
-                        <div className="w-2 h-2 rounded-full bg-sa-faint"></div>
-                        <div className="w-2 h-2 rounded-full bg-sa-faint"></div>
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 18 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.4, delay: index * 0.06 }}
+                  className="group flex flex-col overflow-hidden border border-sa-border bg-sa-panel hover:border-blue-500/35 transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (product.imageUrls?.length) {
+                        setSelectedProductForGallery(product);
+                        setGalleryOpen(true);
+                        setCurrentImageIndex(0);
+                      }
+                    }}
+                    className={cn(
+                      'relative aspect-[16/10] bg-sa-canvas overflow-hidden border-b border-sa-border text-left',
+                      product.imageUrls?.length ? 'cursor-zoom-in' : 'cursor-default',
+                    )}
+                  >
+                    {cover ? (
+                      <img
+                        src={cover}
+                        alt={product.name}
+                        loading="lazy"
+                        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-sa-panel-2 to-sa-canvas">
+                        <Icon className="h-10 w-10 text-sa-faint" />
+                        <span className="text-xs text-sa-faint font-medium">Sin captura aún</span>
                       </div>
-                      <div className="flex-1 relative bg-sa-canvas">
-                        {product.imageUrls && product.imageUrls.length > 0 ? (
-                          <img src={product.imageUrls[0]} alt={product.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-sa-panel">
-                             <Icon className="h-12 w-12 text-[#334155] mb-2" />
-                             <span className="text-xs text-sa-faint font-medium">Vista previa de interfaz</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-sa-canvas to-transparent opacity-60 z-0"></div>
+                    )}
+                  </button>
+                  <div className="p-5 flex flex-col flex-1">
+                    <h4 className="text-lg font-semibold text-sa-text mb-2 tracking-tight">{product.name}</h4>
+                    <p className="text-sa-muted text-sm mb-5 flex-1 leading-relaxed line-clamp-3">{product.description}</p>
+                    <a
+                      href={productWhatsappUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 w-full py-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" /> Consultar por WhatsApp
+                    </a>
                   </div>
-                  <div className="p-6 flex flex-col flex-1 relative z-20">
-                    <h4 className="text-xl font-bold text-sa-text mb-2 flex items-center gap-2">
-                      <Icon className="h-5 w-5 text-blue-500" /> {product.name}
-                    </h4>
-                    <p className="text-sa-muted text-sm mb-6 flex-1">{product.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {product.techStack.map(tech => (
-                        <span key={tech} className="px-2 py-1 bg-sa-panel-2 text-[10px] text-sa-muted rounded border border-sa-border-strong">{tech}</span>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      {product.imageUrls && product.imageUrls.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); setSelectedProductForGallery(product); setGalleryOpen(true); setCurrentImageIndex(0); }}
-                          title="Ver Capturas del Sistema"
-                          className="p-3 rounded-xl border border-sa-border bg-sa-canvas text-sa-muted hover:text-sa-text hover:border-blue-500/40 transition-colors"
-                        >
-                          <ImageIcon className="h-4 w-4" />
-                        </button>
-                      )}
-                      <a href={productWhatsappUrl} target="_blank" rel="noreferrer" className="flex-1 py-3 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all duration-300 shadow-md flex items-center justify-center gap-2">
-                        <MessageCircle className="h-4 w-4" /> Consultar por WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                </motion.div>
               );
-            })
-            )}
-          </div>
+            })}
+            </div>
+          )}
 
-          <div className="mt-12 text-center">
+          <div className="mt-12">
             <Link
               to="/catalogo"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-500 hover:text-blue-400 transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors"
             >
               Ver todos los ejemplos <ArrowRight className="h-4 w-4" />
             </Link>
@@ -487,7 +601,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="mt-8 text-xs text-sa-faint leading-relaxed border-t border-sa-border pt-5">
-                {settings.brandSlogan || 'Automatización comercial y software modular para empresas de alto rendimiento.'}
+                {publicSlogan(settings.brandSlogan)}
               </p>
             </div>
 
@@ -655,7 +769,7 @@ export default function Home() {
               
               <div className="flex-1 overflow-hidden relative bg-black flex items-center justify-center min-h-[400px]">
                 <img 
-                  src={selectedProductForGallery.imageUrls[currentImageIndex]} 
+                  src={normalizeBrandSrc(selectedProductForGallery.imageUrls[currentImageIndex])} 
                   alt={`${selectedProductForGallery.name} preview ${currentImageIndex + 1}`}
                   className="max-w-full max-h-[70vh] object-contain"
                 />

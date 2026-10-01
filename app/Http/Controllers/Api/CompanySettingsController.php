@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Support\Audit;
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -57,7 +58,7 @@ class CompanySettingsController extends Controller
     public function show(Request $request)
     {
         $settings = CompanySetting::query()->first();
-        $data = $settings?->data ?? [];
+        $data = MediaUrl::mapSettings($settings?->data ?? []);
 
         $user = Auth::guard('web')->user() ?? $request->user();
         if ($user && $user->canAccess('settings.manage')) {
@@ -76,17 +77,19 @@ class CompanySettingsController extends Controller
             return response()->json(['message' => 'No hay datos para actualizar.'], 422);
         }
 
+        $data = MediaUrl::mapSettings($data);
+
         $settings = CompanySetting::query()->first();
         if (! $settings) {
             $settings = CompanySetting::query()->create(['data' => $data]);
         } else {
-            $merged = array_merge($settings->data ?? [], $data);
+            $merged = MediaUrl::mapSettings(array_merge($settings->data ?? [], $data));
             $settings->update(['data' => $merged]);
         }
 
         Audit::log('Configuración actualizada', 'Sistema', ['keys' => array_keys($data)]);
 
-        return response()->json($settings->fresh()->data);
+        return response()->json(MediaUrl::mapSettings($settings->fresh()->data ?? []));
     }
 
     /**

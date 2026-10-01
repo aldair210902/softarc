@@ -552,7 +552,7 @@ export default function CompanySettingsPage() {
                 <input
                   type="text"
                   value={settings.brandSlogan}
-                  onChange={e => setSettings({ ...settings, brandSlogan: e.target.value })} className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" placeholder="Automatización comercial y software modular para empresas de alto rendimiento"
+                  onChange={e => setSettings({ ...settings, brandSlogan: e.target.value })} className="w-full px-3 py-2.5 bg-sa-input border border-sa-border rounded-xl text-sa-text text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-sa-faint" placeholder="Sistemas listos, a medida, páginas web y hosting. Cotizamos según tu negocio."
                 />
               </div>
             </div>

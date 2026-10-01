@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Box, DollarSign, Users, ExternalLink, Edit2, FlaskConical, ShoppingCart, LayoutTemplate, Puzzle, ImagePlus, X, Images } from 'lucide-react';
+import { Plus, Search, Box, DollarSign, Users, ExternalLink, Edit2, FlaskConical, ShoppingCart, LayoutTemplate, Puzzle, ImagePlus, X, Images, FolderOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCompanySettings } from '../../../hooks/useCompanySettings';
 import { cn } from '../../../lib/utils';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Can } from '../../../components/Can';
 import { SaaSProduct } from '../../../types';
-import { apiGet, apiMutate, apiUpload } from '../../../lib/api';
+import { apiGet, apiMutate, apiUpload, getCached } from '../../../lib/api';
 import { Field, FormModal, inputClass } from '../../../components/ui/FormModal';
 import { DetailModal, DetailGrid, DetailItem } from '../../../components/ui/DetailModal';
+import { MediaPicker } from '../../../components/ui/MediaPicker';
+import { normalizeBrandSrc } from '../../../lib/brandAssets';
 
 type FilterTab = 'Todos' | 'Gestión & ERP' | 'E-commerce' | 'Módulos Extra' | 'Beta / Desarrollo';
 
@@ -39,22 +41,32 @@ const emptyProduct = {
   imageUrls: [] as string[],
 };
 
+const CATALOG_API = '/api/catalog/manage';
+
 export default function Catalog() {
   const { settings } = useCompanySettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('Todos');
-  const [products, setProducts] = useState<SaaSProduct[]>([]);
+  const [products, setProducts] = useState<SaaSProduct[]>(() => getCached<SaaSProduct[]>(CATALOG_API) || []);
+  const [loading, setLoading] = useState(() => !getCached<SaaSProduct[]>(CATALOG_API));
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [form, setForm] = useState(emptyProduct);
   const [detailProduct, setDetailProduct] = useState<SaaSProduct | null>(null);
 
-  const loadProducts = () => {
-    apiGet<SaaSProduct[]>('/api/catalog/manage', { fresh: true })
+  const loadProducts = (fresh = false) => {
+    if (!getCached<SaaSProduct[]>(CATALOG_API)) {
+      setLoading(true);
+    }
+    apiGet<SaaSProduct[]>(CATALOG_API, fresh ? { fresh: true } : undefined)
       .then(setProducts)
-      .catch(() => setProducts([]));
+      .catch(() => {
+        if (!getCached<SaaSProduct[]>(CATALOG_API)) setProducts([]);
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -156,7 +168,7 @@ export default function Catalog() {
         await apiMutate('post', '/api/catalog', payload);
       }
       closeModal();
-      loadProducts();
+      loadProducts(true);
     } finally {
       setSubmitting(false);
     }
@@ -165,7 +177,7 @@ export default function Catalog() {
   const deleteProduct = async (product: SaaSProduct) => {
     if (!window.confirm(`¿Eliminar el producto "${product.name}"?`)) return;
     await apiMutate('delete', `/api/catalog/${product.id}`);
-    loadProducts();
+    loadProducts(true);
   };
 
   const activeProducts = products.filter((p) => p.status === 'Activo' || p.status === 'Beta').length;
@@ -269,21 +281,31 @@ export default function Catalog() {
               <p className="text-sm font-bold text-sa-text">Imágenes / capturas (opcional)</p>
               <p className="text-[11px] text-sa-faint mt-0.5">Se muestran en la web pública. JPG, PNG o WebP hasta 5 MB.</p>
             </div>
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600/15 text-blue-300 border border-blue-500/30 hover:bg-blue-600/25 cursor-pointer shrink-0">
-              <ImagePlus className="h-3.5 w-3.5" />
-              {uploadingImages ? 'Subiendo…' : 'Añadir'}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                disabled={uploadingImages}
-                onChange={(e) => {
-                  void uploadImages(e.target.files);
-                  e.target.value = '';
-                }}
-              />
-            </label>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-sa-panel text-sa-text border border-sa-border hover:border-blue-500/40"
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                Biblioteca
+              </button>
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-600/25 cursor-pointer">
+                <ImagePlus className="h-3.5 w-3.5" />
+                {uploadingImages ? 'Subiendo…' : 'Subir'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  disabled={uploadingImages}
+                  onChange={(e) => {
+                    void uploadImages(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
           </div>
           {form.imageUrls.length === 0 ? (
             <p className="text-[11px] text-sa-faint">Sin imágenes aún.</p>
@@ -291,7 +313,7 @@ export default function Catalog() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {form.imageUrls.map((url) => (
                 <div key={url} className="relative aspect-video rounded-lg overflow-hidden border border-sa-border-strong bg-sa-panel group">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img src={normalizeBrandSrc(url)} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removeImage(url)} title="Quitar de este producto"
@@ -409,7 +431,20 @@ export default function Catalog() {
         </div>
       </div>
 
-      {filteredProducts.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-sa-panel rounded-2xl border border-sa-border overflow-hidden animate-pulse">
+              <div className="aspect-video bg-sa-border/50" />
+              <div className="p-5 space-y-3">
+                <div className="h-4 w-2/3 rounded bg-sa-border" />
+                <div className="h-3 w-full rounded bg-sa-border/70" />
+                <div className="h-3 w-4/5 rounded bg-sa-border/50" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredProducts.length === 0 ? (
         <EmptyState icon={Box} title="No hay productos SaaS" description="No se encontraron productos con esos filtros." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -424,7 +459,7 @@ export default function Catalog() {
               >
                 {cover && (
                   <div className="aspect-video bg-sa-canvas overflow-hidden border-b border-sa-border">
-                    <img src={cover} alt={product.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+                    <img src={normalizeBrandSrc(cover)} alt={product.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300" />
                   </div>
                 )}
                 <div className="p-6 flex-1 flex flex-col">
@@ -500,7 +535,7 @@ export default function Catalog() {
             {(detailProduct.imageUrls?.length || 0) > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {detailProduct.imageUrls!.map((url) => (
-                  <img key={url} src={url} alt="" className="rounded-lg border border-sa-border aspect-video object-cover w-full" />
+                  <img key={url} src={normalizeBrandSrc(url)} alt="" className="rounded-lg border border-sa-border aspect-video object-cover w-full" />
                 ))}
               </div>
             )}
@@ -517,6 +552,17 @@ export default function Catalog() {
           </div>
         )}
       </DetailModal>
+
+      <MediaPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(urls) => {
+          setForm((prev) => ({
+            ...prev,
+            imageUrls: [...prev.imageUrls, ...urls.filter((u) => !prev.imageUrls.includes(u))],
+          }));
+        }}
+      />
     </div>
   );
 }

@@ -21,7 +21,7 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   city: 'Lima',
   country: 'Perú',
   legalRepresentative: 'Aldair Flores - Lead Software Architect',
-  brandSlogan: 'Automatización comercial y software modular para empresas de alto rendimiento',
+  brandSlogan: 'Sistemas listos, a medida, páginas web y hosting. Cotizamos según tu negocio.',
   salesPhone: '+51 987 654 321',
   salesWhatsapp: '51987654321',
   whatsappWelcomeMessage: 'Hola Software Architec, deseo cotizar una solución tecnológica para mi empresa.',
@@ -54,3 +54,15 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   variashopDemoUrl: '/servicios/saas',
   billingEmissionMode: 'Prueba',
 };
+
+const LEGACY_BRAND_SLOGAN =
+  'Automatización comercial y software modular para empresas de alto rendimiento';
+
+/** Slogan público legible; reemplaza el texto legacy técnico si aún está en BD. */
+export function publicSlogan(raw?: string | null): string {
+  const s = (raw || '').trim();
+  if (!s || s === LEGACY_BRAND_SLOGAN) {
+    return DEFAULT_COMPANY_SETTINGS.brandSlogan;
+  }
+  return s;
+}

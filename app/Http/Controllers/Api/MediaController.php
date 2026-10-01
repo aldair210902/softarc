@@ -108,18 +108,37 @@ class MediaController extends Controller
         }
 
         $disk = Storage::disk('public');
-        if (! $disk->exists($path)) {
+        $legacyRoot = storage_path('app/public');
+        $diskRoot = $disk->path('');
+        $existsOnDisk = $disk->exists($path);
+        $legacyPath = $legacyRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $path);
+        $existsLegacy = is_file($legacyPath);
+
+        if (! $existsOnDisk && ! $existsLegacy) {
             return response()->json(['message' => 'Archivo no encontrado'], 404);
         }
 
         $url = $this->publicUrl($path);
         $usage = $this->usageMap();
-        $usedBy = $usage[$url] ?? $usage[$path] ?? [];
+        $keys = array_unique([
+            $url,
+            $this->normalizeUrlKey($url),
+            $path,
+            'storage/'.$path,
+            '/storage/'.$path,
+        ]);
+        $usedBy = [];
+        foreach ($keys as $key) {
+            foreach ($usage[$key] ?? [] as $ref) {
+                $usedBy[$ref['type'].':'.$ref['id']] = $ref;
+            }
+        }
+        $usedBy = array_values($usedBy);
 
         if (count($usedBy) > 0 && empty($data['force'])) {
             return response()->json([
                 'message' => 'La imagen está en uso. Usa force=true o desasóciala primero.',
-                'usedBy' => array_values($usedBy),
+                'usedBy' => $usedBy,
             ], 409);
         }
 
@@ -127,7 +146,14 @@ class MediaController extends Controller
             $this->detachFromProducts($url, $path);
         }
 
-        $disk->delete($path);
+        if ($existsOnDisk) {
+            $disk->delete($path);
+        }
+        // Si quedó copia en storage/app/public (deploy antiguo), borrarla también.
+        if ($existsLegacy && realpath($diskRoot) !== realpath($legacyRoot)) {
+            @unlink($legacyPath);
+        }
+
         Audit::log('Imagen eliminada', 'Medios', ['path' => $path], 'warning');
 
         return response()->json(['message' => 'Eliminado']);
@@ -247,7 +273,10 @@ class MediaController extends Controller
 
     private function publicUrl(string $path): string
     {
-        return asset('storage/'.$path);
+        // URL relativa al dominio actual (evita APP_URL desfasado en previews).
+        $base = rtrim((string) request()->getBasePath(), '/');
+
+        return $base.'/storage/'.ltrim(str_replace('\\', '/', $path), '/');
     }
 
     private function normalizeUrlKey(string $value): string

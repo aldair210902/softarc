@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCompanySettings } from '../../../hooks/useCompanySettings';
 import { apiGet } from '../../../lib/api';
+import { normalizeBrandSrc } from '../../../lib/brandAssets';
 import {
   DEFAULT_SAAS_CONTENT,
   normalizeSaasContent,
@@ -255,7 +256,7 @@ export default function SaasSystems() {
                 >
                   <div className="h-36 bg-sa-panel-2 border-b border-sa-border flex items-center justify-center relative">
                     {demo.imageUrls?.[0] ? (
-                      <img src={demo.imageUrls[0]} alt={demo.name} className="w-full h-full object-cover" />
+                      <img src={normalizeBrandSrc(demo.imageUrls[0])} alt={demo.name} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <Zap className="h-8 w-8 text-blue-500/60" />
                     )}

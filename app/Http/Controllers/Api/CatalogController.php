@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\SaasProductResource;
 use App\Models\SaasProduct;
 use App\Support\Audit;
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 
 class CatalogController extends Controller
@@ -52,7 +53,7 @@ class CatalogController extends Controller
             'active_clients' => $data['activeClients'] ?? 0,
             'tech_stack' => $data['techStack'] ?? [],
             'icon_name' => $data['iconName'] ?? 'Box',
-            'image_urls' => $data['imageUrls'] ?? [],
+            'image_urls' => MediaUrl::mapList($data['imageUrls'] ?? []),
         ]);
 
         Audit::log('Producto SaaS creado', 'Catálogo', ['id' => $product->id]);
@@ -86,7 +87,9 @@ class CatalogController extends Controller
             'active_clients' => $data['activeClients'] ?? $catalog->active_clients,
             'tech_stack' => array_key_exists('techStack', $data) ? $data['techStack'] : $catalog->tech_stack,
             'icon_name' => $data['iconName'] ?? $catalog->icon_name,
-            'image_urls' => array_key_exists('imageUrls', $data) ? $data['imageUrls'] : $catalog->image_urls,
+            'image_urls' => array_key_exists('imageUrls', $data)
+                ? MediaUrl::mapList($data['imageUrls'])
+                : $catalog->image_urls,
         ]);
 
         Audit::log('Producto SaaS actualizado', 'Catálogo', ['id' => $catalog->id]);

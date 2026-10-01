@@ -8,6 +8,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { apiGet } from '../../lib/api';
+import { normalizeBrandSrc } from '../../lib/brandAssets';
 import { SaaSProduct } from '../../types';
 import { useCompanySettings } from '../../hooks/useCompanySettings';
 
@@ -93,7 +94,7 @@ export default function CatalogDemos() {
                 className="bg-sa-panel border border-sa-border rounded-3xl overflow-hidden hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1">
                 {(product.imageUrls?.length || 0) > 0 && (
                   <div className="aspect-video bg-sa-canvas border-b border-sa-border">
-                    <img src={product.imageUrls![0]} alt={product.name} className="w-full h-full object-cover" />
+                    <img src={normalizeBrandSrc(product.imageUrls![0])} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="p-8 flex flex-col flex-1">

@@ -7,7 +7,7 @@ interface ConfirmDialogProps {
   description: string;
   confirmText?: string;
   cancelText?: string;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onCancel: () => void;
   isDestructive?: boolean;
 }
@@ -22,6 +22,7 @@ export function ConfirmDialog({
   onCancel,
   isDestructive = true,
 }: ConfirmDialogProps) {
+  const [busy, setBusy] = React.useState(false);
   if (!isOpen) return null;
 
   return (
@@ -31,6 +32,7 @@ export function ConfirmDialog({
         aria-label="Cerrar"
         onClick={onCancel}
         className="absolute inset-0 bg-black/70"
+        disabled={busy}
       />
       <div
         role="dialog"
@@ -52,23 +54,32 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-sa-muted hover:text-sa-text hover:bg-sa-border/60 transition-colors"
+            disabled={busy}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-sa-muted hover:text-sa-text hover:bg-sa-border/60 transition-colors disabled:opacity-50"
           >
             {cancelText}
           </button>
           <button
             type="button"
+            disabled={busy}
             onClick={() => {
-              onConfirm();
-              onCancel();
+              void (async () => {
+                setBusy(true);
+                try {
+                  await onConfirm();
+                  onCancel();
+                } finally {
+                  setBusy(false);
+                }
+              })();
             }}
-            className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-colors ${
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50 ${
               isDestructive
                 ? 'bg-red-600 hover:bg-red-500'
                 : 'bg-blue-600 hover:bg-blue-500'
             }`}
           >
-            {confirmText}
+            {busy ? 'Procesando…' : confirmText}
           </button>
         </div>
       </div>

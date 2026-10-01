@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { resolveFooterBrand, resolveHeaderBrand } from '../lib/brandAssets';
 import { useTheme } from '../context/ThemeContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { publicSlogan } from '../lib/defaults';
 
 function BrandMark({ className, size = 'header' }: { className?: string; size?: 'header' | 'footer' }) {
   const { settings } = useCompanySettings();
@@ -252,7 +253,7 @@ export default function PublicLayout() {
             <div className="mb-2 leading-none">
               <BrandMark size="footer" />
             </div>
-            <p className="text-xs max-w-sm text-sa-faint mb-1.5 leading-snug">{settings.brandSlogan}</p>
+            <p className="text-xs max-w-sm text-sa-faint mb-1.5 leading-snug">{publicSlogan(settings.brandSlogan)}</p>
             <p className="text-[11px] text-sa-muted mb-2.5 leading-snug">
               📍 {settings.address}, {settings.city} · {settings.country}
             </p>

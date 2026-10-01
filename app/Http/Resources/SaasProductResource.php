@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Support\MediaUrl;
 
 /** @mixin \App\Models\SaasProduct */
 class SaasProductResource extends JsonResource
@@ -21,7 +22,7 @@ class SaasProductResource extends JsonResource
             'activeClients' => (int) $this->active_clients,
             'techStack' => $this->tech_stack ?? [],
             'iconName' => $this->icon_name ?? 'Box',
-            'imageUrls' => $this->image_urls ?? [],
+            'imageUrls' => MediaUrl::mapList($this->image_urls ?? []),
         ];
     }
 }
